@@ -66,8 +66,6 @@ df_mod = df_mod.rename(columns={
 })
 df = df.dropna()
 df_mod = df_mod.dropna()
-# df.plot(subplots=True, layout=(2,4)); plt.show()
-# df = pd.concat([epu, cpu, macro_data], axis=1)
 # df = df.loc[:'2019-06-01']
 
 # Financial Crisis and Trump year
