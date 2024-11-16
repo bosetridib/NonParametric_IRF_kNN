@@ -96,7 +96,7 @@ for h in range(1,H+1):
 # dataplot(y_fvar)
 # y_fvar.cumsum().plot(subplots=True, layout=(2,4)); plt.show()
 
-delta = B_mat[:,2]
+delta = B_mat[:,0]
 
 # GIRFs
 # Updated history
