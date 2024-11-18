@@ -24,6 +24,7 @@ y_normalized_plags = sm.tsa.lagmat(y_normalized, maxlag=p, use_pandas=True)
 # and remove the 0's due to lag.
 y_normalized_plags = y_normalized_plags.iloc[p:]
 
+
 # Supposing the history of interest is the recent month
 myoi = str(y.index.date[-1])
 omega = y_normalized_plags.iloc[-1]
@@ -96,7 +97,7 @@ for h in range(1,H+1):
 # dataplot(y_fvar)
 # y_fvar.cumsum().plot(subplots=True, layout=(2,4)); plt.show()
 
-delta = B_mat[:,2]
+delta = B_mat[:,0]
 
 # GIRFs
 # Updated history
