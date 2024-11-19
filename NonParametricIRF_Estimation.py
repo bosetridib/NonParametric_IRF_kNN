@@ -1,11 +1,10 @@
-# Import new and previous libraries, dataframe, variables, model, and IRF function.
-from NonParametricIRF_Data import *
+# Import new and previous libraries, dataframe, variables, model, and the functions.
 import statsmodels.api as sm
-import warnings
-warnings.filterwarnings('ignore')
+from NonParametricIRF_Data import *
+from Functions_Required import *
 
 # Setting y
-y = df.copy()
+# y = df.copy()
 y = df_mod.copy()
 # dataplot(y)
 
@@ -13,7 +12,7 @@ y = df_mod.copy()
 model_var = sm.tsa.VAR(y)
 results_var = model_var.fit(6)
 
-# Usual and orthogonal IRFs
+# Usual and orthogonal IRFs (use 0:temperature, 2:cpu_index )
 # irf = results_var.ma_rep(40)
 # irfplot(irf,df,0)
 # irf = results_var.orth_ma_rep(40)
@@ -48,11 +47,13 @@ from sklearn.neighbors import NearestNeighbors
 T = y.shape[0]
 k = round(np.sqrt(T), ndigits=None)
 knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
+# For mahalanobis distance, use the function as
 # knn = NearestNeighbors(
 #     n_neighbors=k, metric='mahalanobis',
 #     metric_params = {'VI': np.linalg.inv(y_normalized.cov())}
 # )
 
+# Estimated y
 y_hat = pd.DataFrame(index=y.index, columns=y.columns)
 # If lagged=0, then lags and leads are both considered. If lagged!=0,
 # then only lags are considered, not leads.
@@ -78,7 +79,4 @@ u = y - y_hat
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
 
-# RMSE
-u = u.dropna()
-N = u.shape[0] - u.shape[1]
-(np.sum(u**2)/N)**0.5
+# Send everything here to the Forecasting_GIRF.py file
