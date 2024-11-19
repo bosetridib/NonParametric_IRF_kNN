@@ -1,3 +1,7 @@
+# Import required libraries
+import matplotlib.pyplot as plt
+import numpy as np
+
 # Define the irf plotting function
 def irfplot(irf,df,c):
     fig, ax = plt.subplots(2,4)
