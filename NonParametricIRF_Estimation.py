@@ -10,7 +10,7 @@ warnings.filterwarnings('ignore')
 y = df_mod.copy()
 # dataplot(y)
 
-# Var analysis
+# VAR analysis
 model_var = sm.tsa.VAR(y)
 results_var = model_var.fit(6)
 
