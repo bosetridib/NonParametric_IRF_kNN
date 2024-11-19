@@ -2,6 +2,8 @@
 import statsmodels.api as sm
 from NonParametricIRF_Data import *
 from Functions_Required import *
+import warnings
+warnings.filterwarnings('ignore')
 
 # Setting y
 # y = df.copy()
