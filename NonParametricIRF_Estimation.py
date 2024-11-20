@@ -80,5 +80,7 @@ u = y - y_hat
 # dataplot(u)
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
-
+results_var.resid.cov()
+# sigma_u = residual_cov*((T-1)/(T-Kp-1))
+results_var.sigma_u
 # Send everything here to the Forecasting_GIRF.py file
