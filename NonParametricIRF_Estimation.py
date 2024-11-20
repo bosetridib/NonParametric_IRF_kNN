@@ -59,7 +59,7 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 y_hat = pd.DataFrame(index=y.index, columns=y.columns)
 # If lagged=0, then lags and leads are both considered. If lagged!=0,
 # then only lags are considered, not leads.
-lagged = 0
+lagged = 1
 
 for t in (y.index if (lagged == 0) else y.index[k:]):
     knn.fit(
@@ -77,10 +77,9 @@ for t in (y.index if (lagged == 0) else y.index[k:]):
 
 # The residuals
 u = y - y_hat
+u = u.dropna()
 # dataplot(u)
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
-results_var.resid.cov()
-# sigma_u = residual_cov*((T-1)/(T-Kp-1))
-results_var.sigma_u
+
 # Send everything here to the Forecasting_GIRF.py file

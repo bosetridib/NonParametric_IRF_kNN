@@ -25,6 +25,7 @@ epu.set_index(
 )
 epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1, inplace=True)
 
+# See Macroeconomic impact of climate change Bilal Kanzig
 # For licencing contact: https://berkeleyearth.org/data/
 temperature = pd.read_fwf(
     'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Regional/TAVG/united-states-TAVG-Trend.txt',
