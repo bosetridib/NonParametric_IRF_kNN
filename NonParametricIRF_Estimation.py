@@ -59,7 +59,7 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 y_hat = pd.DataFrame(index=y.index, columns=y.columns)
 # If lagged=0, then lags and leads are both considered. If lagged!=0,
 # then only lags are considered, not leads.
-lagged = 1
+lagged = 0
 
 for t in (y.index if (lagged == 0) else y.index[k:]):
     knn.fit(
@@ -69,14 +69,14 @@ for t in (y.index if (lagged == 0) else y.index[k:]):
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_hat.loc[t] = np.matmul(y.drop(t).iloc[ind].T, weig)
+    y_hat.loc[t] = np.matmul(y_normalized.drop(t).iloc[ind].T, weig)
 
 # Compare the fitted values
 # dataplot(y_hat)
 # dataplot(results_var.fittedvalues)
 
 # The residuals
-u = y - y_hat
+u = y_normalized - y_hat
 u = u.dropna()
 # dataplot(u)
 # Compare the residuals to simple VAR

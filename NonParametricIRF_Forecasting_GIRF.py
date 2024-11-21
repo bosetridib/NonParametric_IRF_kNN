@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 # Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
 # The desired shock
-delta = B_mat[:,0]
+delta = B_mat[:,2]
 
 # Horizon "in the middle"
 H = 40

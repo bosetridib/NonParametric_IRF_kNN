@@ -4,8 +4,7 @@
 import pandas as pd
 import numpy as np
 from pandas_datareader.data import DataReader
-
-# Data collection:
+import matplotlib.pyplot as plt
 
 # Source: Gavriilidis, K. (2021). Measuring Climate Policy Uncertainty. Available at SSRN: https://ssrn.com/abstract=3847388"
 cpu = pd.read_csv(
@@ -28,9 +27,10 @@ epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1, inplace=True)
 # See Macroeconomic impact of climate change Bilal Kanzig
 # For licencing contact: https://berkeleyearth.org/data/
 temperature = pd.read_fwf(
-    'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Regional/TAVG/united-states-TAVG-Trend.txt',
-    skiprows=70, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']
+    'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Land_and_Ocean_complete.txt',
+    skiprows=85, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']
 )
+temperature = temperature.loc[:2096]
 temperature.set_index(
     pd.to_datetime(
         temperature.Year.astype(str) + '-' + temperature.Month.astype(str),
@@ -38,6 +38,7 @@ temperature.set_index(
     ), inplace=True
 )
 temperature.drop(['Year', 'Month'], axis=1, inplace=True)
+temperature = temperature.astype('float64')
 # temperature.plot(); plt.show()
 
 # Slicing the EPU data, temperature based on CPU dates
