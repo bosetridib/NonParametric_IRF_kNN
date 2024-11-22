@@ -1,6 +1,6 @@
 # Import new and previous libraries, dataframe, variables, model, and the functions.
-import statsmodels.api as sm
 from NonParametricIRF_Data import *
+import statsmodels.api as sm
 from Functions_Required import *
 import warnings
 warnings.filterwarnings('ignore')

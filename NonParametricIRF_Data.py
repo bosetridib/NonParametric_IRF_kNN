@@ -26,11 +26,14 @@ epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1, inplace=True)
 
 # See Macroeconomic impact of climate change Bilal Kanzig
 # For licencing contact: https://berkeleyearth.org/data/
+land = 0
 temperature = pd.read_fwf(
-    'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Land_and_Ocean_complete.txt',
-    skiprows=85, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']
+    'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Complete_TAVG_complete.txt' if land == 1 else 'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Land_and_Ocean_complete.txt',
+    skiprows = 35 if land == 1 else 85, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']
 )
-temperature = temperature.loc[:2096]
+
+if (land != 1): temperature = temperature.loc[:2096]
+
 temperature.set_index(
     pd.to_datetime(
         temperature.Year.astype(str) + '-' + temperature.Month.astype(str),
@@ -38,7 +41,8 @@ temperature.set_index(
     ), inplace=True
 )
 temperature.drop(['Year', 'Month'], axis=1, inplace=True)
-temperature = temperature.astype('float64')
+if (land != 1): temperature = temperature.astype('float64')
+
 # temperature.plot(); plt.show()
 
 # Slicing the EPU data, temperature based on CPU dates
