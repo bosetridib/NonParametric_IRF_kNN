@@ -9,13 +9,15 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 
 # Retrieve shocks through Cholesky decomposition
+# Error is allowed to vary with each horizon.
 B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 # Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
-# The desired shock
-delta = B_mat[:,2]
 
 # Horizon "in the middle"
 H = 40
+
+# The desired shock
+delta = B_mat[:,0]
 
 # Old method
 # Since p=6 in the Gavriilidis, Kanzig, Stock (2023) paper, we select
@@ -90,8 +92,8 @@ for h in range(1,H+1):
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f.loc[h] = np.matmul(X_train._append(y_f).iloc[ind+1].T, weig).values
 
-# y_f.plot(subplots=True, layout=(2,4)); plt.show()
-# y_f.cumsum().plot(subplots=True, layout=(2,4)); plt.show()
+# y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
+# dataplot(y_f)
 # y_f = y_f*(y.max() - y.min()) + y.min()
 # pd.concat([y_hat,y_f], axis=0).plot(subplots=True, layout=(2,4)); plt.show()
 
@@ -120,7 +122,8 @@ for h in range(1,H+1):
     girf.loc[h] = np.matmul(X_train._append(girf).iloc[ind+1].T, weig).values
 
 girf = girf - y_f
+girf_cumul = girf.cumsum(axis=0)
 girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
 dataplot(girf)
-y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
-dataplot(y_f)
+girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
+dataplot(girf_cumul)
