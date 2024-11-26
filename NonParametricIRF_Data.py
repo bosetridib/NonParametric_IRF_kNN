@@ -26,7 +26,7 @@ epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1, inplace=True)
 
 # See Macroeconomic impact of climate change Bilal Kanzig
 # For licencing contact: https://berkeleyearth.org/data/
-land = 0
+land = 1
 temperature = pd.read_fwf(
     'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Complete_TAVG_complete.txt' if land == 1 else 'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Land_and_Ocean_complete.txt',
     skiprows = 35 if land == 1 else 85, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']

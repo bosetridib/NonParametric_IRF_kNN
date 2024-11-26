@@ -9,14 +9,15 @@ warnings.filterwarnings('ignore')
 # y = df.copy()
 y = df_mod.copy()
 # dataplot(y)
-
+y = y[y.columns[1:8]]
 # VAR analysis
 model_var = sm.tsa.VAR(y)
 results_var = model_var.fit(6)
-
+results_var.irf(40).plot_cum_effects()
+plt.show()
 # Usual and orthogonal IRFs (use 0:temperature, 2:cpu_index )
 # irf = results_var.ma_rep(40)
-# irfplot(irf,df,0)
+# irfplot(irf,df,1)
 # irf = results_var.orth_ma_rep(40)
 # irfplot(irf,df,2)
 
