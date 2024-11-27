@@ -83,4 +83,12 @@ u = u.dropna()
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
 
+y_normalized.plot(
+    subplots=True, layout=(2,4), color = 'blue',
+    ax=u.plot(
+        subplots=True, layout=(2,4), color = 'black'
+    )
+)
+plt.show()
+
 # Send everything here to the Forecasting_GIRF.py file
