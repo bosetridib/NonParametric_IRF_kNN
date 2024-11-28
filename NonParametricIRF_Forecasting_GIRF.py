@@ -127,3 +127,5 @@ girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.col
 dataplot(girf)
 girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
 dataplot(girf_cumul)
+
+y.resample('M').mean()

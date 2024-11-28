@@ -77,8 +77,19 @@ for t in (y.index if (lagged == 0) else y.index[k:]):
 # dataplot(results_var.fittedvalues)
 
 # The residuals
-u = y_normalized - y_hat
-u = u.dropna()
+u = pd.DataFrame(index=y.index, columns=y.columns)
+
+for t in (u.index if (lagged == 0) else u.index[k:]):
+    knn.fit(
+        y_normalized.drop(t) if (lagged == 0) else y_normalized.loc[:t - pd.DateOffset(months=1)]
+    )
+    dist, ind = knn.kneighbors(y_normalized.loc[t].to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    dist = (dist - dist.min())/(dist.max() - dist.min())
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+    u.loc[t] = np.matmul((y_normalized.drop(t)-y_hat.drop(t)).iloc[ind].T, weig)
+    u.loc[t] = u.loc[t]
+
 # dataplot(u)
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
