@@ -91,7 +91,10 @@ df = df.dropna()
 df_mod = df_mod.dropna()
 
 # Comparison with 'The Macroeconomic Effects of Climate Policy Uncertainty' by Gavriilidis, Kanzig, and Stock (2023)
-# df = df.loc[:'2019-06-01']
+# df = df[df.columns[1:]].loc[:'2019-06-01']; df_mod = df_mod[df_mod.columns[1:]].loc[:'2019-06-01']
+# Note that emission is excluded since in their paper they mapped it through the industrial production data, which
+# was the reason that emission always copied the behavior of industrial production. Omitting that variable didn't
+# change anything.
 # Financial Crisis and Trump year
 # df_fin = df.drop(macro_data.loc['2007-12-01':'2009-06-01'].index)
 # df_trump = df.drop(macro_data.loc['2017-02-01':].index)
