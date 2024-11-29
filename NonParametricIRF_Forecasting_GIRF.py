@@ -78,11 +78,17 @@ dataplot(girf)
 # New method
 X_train = y_normalized.iloc[:-1]
 knn.fit(X_train)
+
+# Collected the nearest neighbour vectors for confidence intervals.
+ci_df = pd.DataFrame(columns=y.columns)
+
 dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
+
+ci_df = ci_df._append(y_normalized.iloc[ind])
 
 for h in range(1,H+1):
     knn.fit(X_train._append(y_f).iloc[:-1])
@@ -91,6 +97,7 @@ for h in range(1,H+1):
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f.loc[h] = np.matmul(X_train._append(y_f).iloc[ind+1].T, weig).values
+    ci_df = ci_df._append(X_train._append(y_f).iloc[ind])
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
@@ -101,7 +108,7 @@ for h in range(1,H+1):
 # dataplot(y_fvar)
 # y_fvar.cumsum().plot(subplots=True, layout=(2,4)); plt.show()
 
-delta = B_mat[:,1]
+delta = B_mat[:,0]
 
 # GIRFs
 # Updated history
@@ -128,4 +135,30 @@ dataplot(girf)
 girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
 dataplot(girf_cumul)
 
-y.resample('M').mean()
+# Resample with replacement a set of k collections of histories and forecasts
+ci_df.sample(n = k, replace=True)
+
+# Set R
+R = 100
+knn.fit(ci_df.sample(n = k, replace=True))
+dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
+dist = dist[0,:]; ind = ind[0,:]
+dist = (dist - dist.min())/(dist.max() - dist.min())
+weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+girf_star = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
+girf_star
+
+for h in range(1,H+1):
+    knn.fit(X_train._append(girf).iloc[:-1])
+    dist, ind = knn.kneighbors(girf.iloc[-1].to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    dist = (dist - dist.min())/(dist.max() - dist.min())
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+    girf.loc[h] = np.matmul(X_train._append(girf).iloc[ind+1].T, weig).values
+
+girf = girf - y_f
+girf_cumul = girf.cumsum(axis=0)
+girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
+dataplot(girf)
+girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
+dataplot(girf_cumul)
