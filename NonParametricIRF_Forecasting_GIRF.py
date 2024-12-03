@@ -118,7 +118,7 @@ dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-girf = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
+girf = np.matmul(X_train._append(y_normalized.iloc[-1]).iloc[ind].T, weig).to_frame().T
 
 for h in range(1,H+1):
     knn.fit(X_train._append(girf).iloc[:-1])
@@ -126,7 +126,7 @@ for h in range(1,H+1):
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    girf.loc[h] = np.matmul(X_train._append(girf).iloc[ind+1].T, weig).values
+    girf.loc[h] = np.matmul(X_train._append(girf).iloc[ind].T, weig).values
 
 girf = girf - y_f
 girf_cumul = girf.cumsum(axis=0)
@@ -136,17 +136,25 @@ girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), colu
 dataplot(girf_cumul)
 
 # Resample with replacement a set of k collections of histories and forecasts
-ci_df.sample(n = k, replace=True)
+# ci_df.sample(n = T-k, replace=True)
 
 # Set R
 R = 100
-knn.fit(ci_df.sample(n = k, replace=True))
-dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
-dist = dist[0,:]; ind = ind[0,:]
-dist = (dist - dist.min())/(dist.max() - dist.min())
-weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-girf_star = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
-girf_star
+
+# GIRF_star at H=0
+girf_star_df = pd.DataFrame(columns=girf.columns)
+for i in range(0,R):
+    X_train_ci = ci_df.sample(n = T-k, replace=True)
+    knn.fit(X_train_ci)
+    dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    dist = (dist - dist.min())/(dist.max() - dist.min())
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+    girf_star_df = girf_star_df._append(np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T)
+
+girf_star_df.hist(); plt.show()
+girf_star_df.describe()
+girf.iloc[0]
 
 for h in range(1,H+1):
     knn.fit(X_train._append(girf).iloc[:-1])
