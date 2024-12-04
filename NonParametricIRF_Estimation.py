@@ -94,12 +94,12 @@ for t in (u.index if (lagged == 0) else u.index[k:]):
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
 
-u.plot(
-    subplots=True, layout=(2,4), color = 'blue',
-    ax=y_normalized.plot(
-        subplots=True, layout=(2,4), color = 'black'
-    )
-)
-plt.show()
+# u.plot(
+#     subplots=True, layout=(2,4), color = 'blue',
+#     ax=y_normalized.plot(
+#         subplots=True, layout=(2,4), color = 'black'
+#     )
+# )
+# plt.show()
 
 # Send everything here to the Forecasting_GIRF.py file

@@ -89,7 +89,6 @@ weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
 
 ci_df = ci_df._append(y_normalized.iloc[ind])
-ci_df_1 = ci_df._append(y_normalized.iloc[ind+1])
 
 for h in range(1,H+1):
     knn.fit(X_train._append(y_f).iloc[:-1])
@@ -99,7 +98,8 @@ for h in range(1,H+1):
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f.loc[h] = np.matmul(X_train._append(y_f).iloc[ind+1].T, weig).values
     ci_df = ci_df._append(X_train._append(y_f).iloc[ind])
-    ci_df_1 = ci_df._append(X_train._append(y_f).iloc[ind+1])
+
+ci_df.index
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
@@ -147,13 +147,12 @@ R = 100
 girf_star_df = pd.DataFrame(columns=girf.columns)
 for i in range(0,R):
     X_train_ci = ci_df.sample(n = T-k, replace=True)
-    X_train_ci_1 = ci_df_1.loc[X_train_ci.index]
     knn.fit(X_train_ci)
     dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    girf_star_df = girf_star_df._append(np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T)
+    girf_star_df = girf_star_df._append(np.matmul(X_train.iloc[ind].T, weig).to_frame().T)
 
 girf_star_df.hist(); plt.show()
 girf_star_df.describe()
