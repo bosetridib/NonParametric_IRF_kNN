@@ -2,6 +2,7 @@
 from NonParametricIRF_Data import *
 import statsmodels.api as sm
 from Functions_Required import *
+from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -17,7 +18,8 @@ y = df_mod.copy()
 # results_var.irf(40).plot_cum_effects(); plt.show()
 # Usual and orthogonal IRFs (use 0:temperature, 2:cpu_index )
 # irf = results_var.ma_rep(40)
-# irfplot(irf,df,1)
+# irfplot(irf,df,2)
+# irfplot(irf.cumsum(axis = 0),df,2)
 # irf = results_var.orth_ma_rep(40)
 # irfplot(irf,df,2)
 
@@ -46,7 +48,6 @@ y_normalized = pd.DataFrame(
 # dataplot(y_normalized)
 
 # Generating the residuals u_t by estimating y_t
-from sklearn.neighbors import NearestNeighbors
 T = y.shape[0]
 k = round(np.sqrt(T), ndigits=None)
 knn = NearestNeighbors(n_neighbors=k, metric='euclidean')

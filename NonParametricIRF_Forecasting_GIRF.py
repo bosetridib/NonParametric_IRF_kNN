@@ -136,12 +136,12 @@ girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), colu
 dataplot(girf_cumul)
 
 # Set R: the number of simulations
-R = 100
+R = 1000
 
 # GIRF_star at H=0
 girf_star_df = pd.DataFrame(columns=girf.columns)
 for i in range(0,R):
-    X_train_ci = ci_df.sample(n = T-k, replace=True)
+    X_train_ci = ci_df.sample(n = T+k, replace=False)
     # Sort the dataframe with respect to date and horizon, separately
     mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
     X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
@@ -150,11 +150,24 @@ for i in range(0,R):
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    girf_star_df = girf_star_df._append(np.matmul(X_train.iloc[ind+1].T, weig).to_frame().T)
+    girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind+1].T, weig).to_frame().T])
+
+X_train_ci = ci_df.sample(n = T+k, replace=False)
+dataplot(X_train_ci)
+# Sort the dataframe with respect to date and horizon, separately
+mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
+knn.fit(X_train_ci)
+dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
+dist = dist[0,:]; ind = ind[0,:]
+dist = (dist - dist.min())/(dist.max() - dist.min())
+weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+
+
 
 girf_star_df = girf_star_df - girf.iloc[0]
-
-pd.concat([2*girf.iloc[0] - girf_star_df.quantile(0.95), girf.iloc[0], 2*girf.iloc[0] - girf_star_df.quantile(0.05)], axis=1)
+alpha = 0.90
+pd.concat([2*girf.iloc[0] - girf_star_df.quantile(alpha+(1-alpha)/2), girf.iloc[0], 2*girf.iloc[0] - girf_star_df.quantile((1-alpha)/2)], axis=1)
 
 for i in range(1,R):
     X_train_ci = ci_df.sample(n = T-k, replace=True)
