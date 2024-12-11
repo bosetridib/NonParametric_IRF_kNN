@@ -22,7 +22,7 @@ epu.set_index(
         format="%Y-%m"
     ), inplace=True
 )
-epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1, inplace=True)
+epu = epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1)
 
 # See Macroeconomic impact of climate change Bilal Kanzig
 # For licencing contact: https://berkeleyearth.org/data/

@@ -88,16 +88,16 @@ dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
 
-ci_df = ci_df._append(y_normalized.iloc[ind])
+ci_df = pd.concat([ci_df, y_normalized.iloc[ind]], axis=0)
 
 for h in range(1,H+1):
-    knn.fit(X_train._append(y_f).iloc[:-1])
+    knn.fit(pd.concat([X_train,y_f], axis=0).iloc[:-1])
     dist, ind = knn.kneighbors(y_f.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f.loc[h] = np.matmul(X_train._append(y_f).iloc[ind+1].T, weig).values
-    ci_df = ci_df._append(X_train._append(y_f).iloc[ind])
+    y_f.loc[h] = np.matmul(pd.concat([X_train, y_f], axis=0).iloc[ind+1].T, weig).values
+    ci_df = pd.concat([ci_df, pd.concat([X_train, y_f], axis=0).iloc[ind]], axis=0)
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
@@ -118,71 +118,84 @@ dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-girf = np.matmul(X_train._append(y_normalized.iloc[-1]).iloc[ind+1].T, weig).to_frame().T
+girf = np.matmul(pd.concat([X_train , y_normalized.iloc[-1].to_frame().T], axis=0).iloc[ind+1].T, weig).to_frame().T
 
 for h in range(1,H+1):
-    knn.fit(X_train._append(girf).iloc[:-1])
+    knn.fit(pd.concat([X_train, girf], axis=0).iloc[:-1])
     dist, ind = knn.kneighbors(girf.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    girf.loc[h] = np.matmul(X_train._append(girf).iloc[ind+1].T, weig).values
+    girf.loc[h] = np.matmul(pd.concat([X_train, girf], axis=0).iloc[ind+1].T, weig).values
 
 girf = girf - y_f
 girf_cumul = girf.cumsum(axis=0)
-girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
-dataplot(girf)
-girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
-dataplot(girf_cumul)
 
 # Set R: the number of simulations
-R = 1000
+R = 100
 
-# GIRF_star at H=0
+# GIRF_star and y_f_star at H=0
 girf_star_df = pd.DataFrame(columns=girf.columns)
+y_f_star_df = pd.DataFrame(columns=y_f.columns)
+
 for i in range(0,R):
-    X_train_ci = ci_df.sample(n = T+k, replace=False)
+    X_train_ci = ci_df.sample(n = T, replace=True)
     # Sort the dataframe with respect to date and horizon, separately
     mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
     X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
     knn.fit(X_train_ci)
+    # Bootstrapped forecast
+    dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    dist = (dist - dist.min())/(dist.max() - dist.min())
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+    y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci.iloc[ind+1].T, weig).to_frame().T])
+    # Bootstrapped GIRF
     dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind+1].T, weig).to_frame().T])
 
-X_train_ci = ci_df.sample(n = T+k, replace=False)
-dataplot(X_train_ci)
-# Sort the dataframe with respect to date and horizon, separately
-mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
-X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
-knn.fit(X_train_ci)
-dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
-dist = dist[0,:]; ind = ind[0,:]
-dist = (dist - dist.min())/(dist.max() - dist.min())
-weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+girf_star_df = girf_star_df - y_f_star_df
 
+# Confidence level
+conf = 0.90
 
+# Multi-Index GIRF
+girf_complete = pd.concat([2*girf.iloc[0] - girf_star_df.quantile(conf+(1-conf)/2), girf.iloc[0], 2*girf.iloc[0] - girf_star_df.quantile((1-conf)/2)], axis=1).T
 
-girf_star_df = girf_star_df - girf.iloc[0]
-alpha = 0.90
-pd.concat([2*girf.iloc[0] - girf_star_df.quantile(alpha+(1-alpha)/2), girf.iloc[0], 2*girf.iloc[0] - girf_star_df.quantile((1-alpha)/2)], axis=1)
+for h in range(1,H+1):
+    girf_star_df = pd.DataFrame(columns=girf.columns)
+    y_f_star_df = pd.DataFrame(columns=y_f.columns)
+    for i in range(0,R):
+        X_train_ci = ci_df.sample(n = T, replace=True)
+        # Sort the dataframe with respect to date and horizon, separately
+        mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+        X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
+        knn.fit(X_train_ci)
+        # Bootstrapped forecast
+        dist, ind = knn.kneighbors(y_f.iloc[h-1].to_numpy().reshape(1,-1))
+        dist = dist[0,:]; ind = ind[0,:]
+        dist = (dist - dist.min())/(dist.max() - dist.min())
+        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+        y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
+        # Bootstrapped GIRF
+        dist, ind = knn.kneighbors(girf.iloc[h-1].to_numpy().reshape(1,-1))
+        dist = dist[0,:]; ind = ind[0,:]
+        dist = (dist - dist.min())/(dist.max() - dist.min())
+        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+        girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
+    girf_star_df = girf_star_df - y_f_star_df
+    girf_complete = pd.concat([
+        girf_complete, pd.concat([2*girf.iloc[h] - girf_star_df.quantile(conf+(1-conf)/2), girf.iloc[h], 2*girf.iloc[h] - girf_star_df.quantile((1-conf)/2)], axis=1).T
+    ])
 
-for i in range(1,R):
-    X_train_ci = ci_df.sample(n = T-k, replace=True)
-    # Sort the dataframe with respect to date and horizon, separately
-    mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
-    X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
-    knn.fit(X_train_ci)
-    dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
-    dist = dist[0,:]; ind = ind[0,:]
-    dist = (dist - dist.min())/(dist.max() - dist.min())
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    girf_star_df = girf_star_df._append(np.matmul(X_train.iloc[ind+1].T, weig).to_frame().T)
+girf_complete.index = pd.MultiIndex(levels=[range(0,H+1),['lower','GIRF','upper']], codes=[[x//3 for x in range(0,41*3)],[0,1,2]*41], names=('Horizon', 'CI'))
+girf_complete
 
-girf = girf - y_f
-girf_cumul = girf.cumsum(axis=0)
+girf_complete.loc[1,'lower']
+
 girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
 dataplot(girf)
 girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
