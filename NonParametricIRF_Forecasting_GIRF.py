@@ -143,6 +143,7 @@ for i in range(0,R):
     # Sort the dataframe with respect to date and horizon, separately
     mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
     X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
+    # X_train_ci_lead1 = ci_df.index.get_indexer(X_train_ci.loc[mask].index.unique())
     knn.fit(X_train_ci)
     # Bootstrapped forecast
     dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
@@ -195,6 +196,7 @@ girf_complete.index = pd.MultiIndex(levels=[range(0,H+1),['lower','GIRF','upper'
 girf_complete
 
 girf_complete.unstack(level=1)
+girf_complete[['Treasurey3Months']].unstack().plot(); plt.show()
 
 girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
 dataplot(girf)
