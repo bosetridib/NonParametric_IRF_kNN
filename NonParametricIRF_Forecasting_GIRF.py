@@ -186,7 +186,7 @@ for h in range(1,H+1):
         dist = (dist - dist.min())/(dist.max() - dist.min())
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
         girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
-    girf_star_df = girf_star_df - y_f_star_df
+    #girf_star_df = girf_star_df - y_f_star_df
     girf_complete = pd.concat([
         girf_complete, pd.concat([2*girf.iloc[h] - girf_star_df.quantile(conf+(1-conf)/2), girf.iloc[h], 2*girf.iloc[h] - girf_star_df.quantile((1-conf)/2)], axis=1).T
     ])
@@ -194,7 +194,7 @@ for h in range(1,H+1):
 girf_complete.index = pd.MultiIndex(levels=[range(0,H+1),['lower','GIRF','upper']], codes=[[x//3 for x in range(0,41*3)],[0,1,2]*41], names=('Horizon', 'CI'))
 girf_complete
 
-girf_complete.loc[1,'lower']
+girf_complete.unstack(level=1)
 
 girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
 dataplot(girf)
