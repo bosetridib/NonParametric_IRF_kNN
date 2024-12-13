@@ -76,11 +76,16 @@ dataplot(girf)
 
 
 # New method
-X_train = y_normalized.iloc[:-1]
+
+# Supposing the history of interest is the recent month
+myoi = str(y.index.date[-1])
+omega = y_normalized.loc[myoi]
+X_train = y_normalized.drop(myoi)
+
 knn.fit(X_train)
 
 # Collected the nearest neighbour vectors for confidence intervals.
-ci_df_y = pd.DataFrame(columns=y.columns)
+ci_df_y = pd.DataFrame(columns=y_f.columns)
 
 dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -88,7 +93,7 @@ dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
 
-ci_df_y = pd.concat([ci_df_y, y_normalized.iloc[ind+1]], axis=0)
+ci_df_y = pd.concat([ci_df_y, y_normalized.iloc[ind]], axis=0)
 
 for h in range(1,H+1):
     knn.fit(pd.concat([X_train,y_f], axis=0).iloc[:-1])
@@ -97,7 +102,10 @@ for h in range(1,H+1):
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f.loc[h] = np.matmul(pd.concat([X_train, y_f], axis=0).iloc[ind+1].T, weig).values
-    ci_df_y = pd.concat([ci_df_y, pd.concat([X_train, y_f], axis=0).iloc[ind+1]], axis=0)
+    ci_df_y = pd.concat([ci_df_y, pd.concat([X_train, y_f], axis=0).iloc[ind]], axis=0)
+
+# Select the unique values of the confidence interval dataframe
+ci_df_y = ci_df_y.loc[~ci_df_y.index.duplicated()]
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
@@ -112,7 +120,7 @@ delta = B_mat[:,0]
 
 # GIRFs
 # Updated history
-omega_star = y_normalized.iloc[-1] + delta
+omega_star = y_normalized.loc[myoi] + delta
 knn.fit(X_train)
 dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -120,8 +128,9 @@ dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 girf = np.matmul(pd.concat([X_train , y_normalized.iloc[-1].to_frame().T], axis=0).iloc[ind+1].T, weig).to_frame().T
 
+# The confidence interval dataframe for GIRF
 ci_df_girf = pd.DataFrame(columns=y.columns)
-ci_df_girf = pd.concat([ci_df_girf, y_normalized.iloc[ind+1]], axis=0)
+ci_df_girf = pd.concat([ci_df_girf, y_normalized.iloc[ind]], axis=0)
 
 for h in range(1,H+1):
     knn.fit(pd.concat([X_train, girf], axis=0).iloc[:-1])
@@ -135,6 +144,9 @@ for h in range(1,H+1):
 girf = girf - y_f
 girf_cumul = girf.cumsum(axis=0)
 
+# Removing the duplicates in the confidence interval GIRF dataframe
+ci_df_girf = ci_df_girf.loc[~ci_df_girf.index.duplicated()]
+
 # Set R: the number of simulations
 R = 100
 
@@ -143,7 +155,7 @@ girf_star_df = pd.DataFrame(columns=girf.columns)
 y_f_star_df = pd.DataFrame(columns=y_f.columns)
 
 for i in range(0,R):
-    X_train_ci = ci_df_y.sample(n = T-k, replace=True)
+    X_train_ci = ci_df_y.sample(n = T, replace=True)
     # Sort the dataframe with respect to date and horizon, separately
     mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
     X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
