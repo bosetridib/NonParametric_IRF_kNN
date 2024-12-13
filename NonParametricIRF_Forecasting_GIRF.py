@@ -157,6 +157,8 @@ for i in range(0,R):
     y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
     # Bootstrapped GIRF
     X_train_ci = ci_df_girf.sample(n = T-k, replace=True)
+    mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+    X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
     knn.fit(X_train_ci)
     dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
@@ -187,12 +189,17 @@ for h in range(1,H+1):
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
         y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
         # Bootstrapped GIRF
-        dist, ind = knn.kneighbors(girf.iloc[h-1].to_numpy().reshape(1,-1))
+        X_train_ci = ci_df_girf.sample(n = T, replace=True)
+        # Sort the dataframe with respect to date and horizon, separately
+        mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+        X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
+        knn.fit(X_train_ci)
+        dist, ind = knn.kneighbors((girf+y_f).iloc[h-1].to_numpy().reshape(1,-1))
         dist = dist[0,:]; ind = ind[0,:]
         dist = (dist - dist.min())/(dist.max() - dist.min())
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
         girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
-    #girf_star_df = girf_star_df - y_f_star_df
+    girf_star_df = girf_star_df - y_f_star_df
     girf_complete = pd.concat([
         girf_complete, pd.concat([2*girf.iloc[h] - girf_star_df.quantile(conf+(1-conf)/2), girf.iloc[h], 2*girf.iloc[h] - girf_star_df.quantile((1-conf)/2)], axis=1).T
     ])
@@ -201,7 +208,7 @@ girf_complete.index = pd.MultiIndex(levels=[range(0,H+1),['lower','GIRF','upper'
 girf_complete
 
 girf_complete.unstack(level=1)
-girf_complete[['Treasurey3Months']].unstack().plot(); plt.show()
+girf_complete[[y.columns[4]]].unstack().plot(); plt.show()
 
 girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
 dataplot(girf)
