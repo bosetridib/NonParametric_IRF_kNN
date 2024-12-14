@@ -85,7 +85,8 @@ X_train = y_normalized.drop(myoi)
 knn.fit(X_train)
 
 # Collected the nearest neighbour vectors for confidence intervals.
-ci_df_y = pd.DataFrame(columns=y_f.columns)
+ci_df_y = pd.DataFrame(columns=y.columns)
+ci_df_y_lead1 = pd.DataFrame(columns=y.columns)
 
 dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -94,6 +95,7 @@ weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
 
 ci_df_y = pd.concat([ci_df_y, y_normalized.iloc[ind]], axis=0)
+ci_df_y_lead1 = pd.concat([ci_df_y_lead1, y_normalized.iloc[ind+1]], axis=0)
 
 for h in range(1,H+1):
     knn.fit(pd.concat([X_train,y_f], axis=0).iloc[:-1])
@@ -103,9 +105,12 @@ for h in range(1,H+1):
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f.loc[h] = np.matmul(pd.concat([X_train, y_f], axis=0).iloc[ind+1].T, weig).values
     ci_df_y = pd.concat([ci_df_y, pd.concat([X_train, y_f], axis=0).iloc[ind]], axis=0)
+    ci_df_y_lead1 = pd.concat([ci_df_y_lead1, pd.concat([X_train, y_f], axis=0).iloc[ind+1]], axis=0)
+
 
 # Select the unique values of the confidence interval dataframe
 ci_df_y = ci_df_y.loc[~ci_df_y.index.duplicated()]
+ci_df_y_lead1 = ci_df_y_lead1.loc[~ci_df_y_lead1.index.duplicated()]
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
@@ -131,6 +136,8 @@ girf = np.matmul(pd.concat([X_train , y_normalized.iloc[-1].to_frame().T], axis=
 # The confidence interval dataframe for GIRF
 ci_df_girf = pd.DataFrame(columns=y.columns)
 ci_df_girf = pd.concat([ci_df_girf, y_normalized.iloc[ind]], axis=0)
+ci_df_girf_lead1 = pd.DataFrame(columns=y.columns)
+ci_df_girf_lead1 = pd.concat([ci_df_girf, y_normalized.iloc[ind+1]], axis=0)
 
 for h in range(1,H+1):
     knn.fit(pd.concat([X_train, girf], axis=0).iloc[:-1])
@@ -139,13 +146,16 @@ for h in range(1,H+1):
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     girf.loc[h] = np.matmul(pd.concat([X_train, girf], axis=0).iloc[ind+1].T, weig).values
-    ci_df_girf = pd.concat([ci_df_girf, pd.concat([X_train, girf], axis=0).iloc[ind+1]], axis=0)
+    ci_df_girf = pd.concat([ci_df_girf, pd.concat([X_train, girf], axis=0).iloc[ind]], axis=0)
+    ci_df_girf_lead1 = pd.concat([ci_df_girf_lead1, pd.concat([X_train, girf], axis=0).iloc[ind+1]], axis=0)
+
 
 girf = girf - y_f
 girf_cumul = girf.cumsum(axis=0)
 
 # Removing the duplicates in the confidence interval GIRF dataframe
 ci_df_girf = ci_df_girf.loc[~ci_df_girf.index.duplicated()]
+ci_df_girf_lead1 = ci_df_girf_lead1.loc[~ci_df_girf_lead1.index.duplicated()]
 
 # Set R: the number of simulations
 R = 100
