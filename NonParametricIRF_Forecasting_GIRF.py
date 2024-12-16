@@ -19,62 +19,6 @@ H = 40
 # The desired shock
 delta = B_mat[:,0]
 
-# Old method
-# Since p=6 in the Gavriilidis, Kanzig, Stock (2023) paper, we select
-# the histories at t-1...t-6;
-p = 6; n_var = y.shape[1]
-
-y_normalized_plags = sm.tsa.lagmat(y_normalized, maxlag=p, use_pandas=True)
-# and remove the 0's due to lag.
-y_normalized_plags = y_normalized_plags.iloc[p:]
-
-
-# Supposing the history of interest is the recent month
-myoi = str(y.index.date[-1])
-omega = y_normalized_plags.iloc[-1]
-X_train = y_normalized_plags.iloc[:-1]
-
-# Manual way for h=0, 1 to H=40
-from scipy.spatial.distance import euclidean
-dist = np.array([euclidean(i, omega.to_numpy()) for i in X_train.to_numpy()])
-dist = (dist - np.min(dist))/(np.max(dist) - np.min(dist))
-weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-y_f = np.matmul(y.iloc[p:].drop([myoi]).T, weig).to_frame().T
-
-for h in range(1,H+1):
-    dist = np.array([euclidean(i, omega.to_numpy()) for i in X_train.iloc[:-h].to_numpy()])
-    dist = (dist - np.min(dist))/(np.max(dist) - np.min(dist))
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f.loc[h] = np.matmul(y.iloc[p+h:].drop([myoi]).T, weig).values
-
-# The forecasts are
-# y_f.plot(subplots = True, layout = (2,4)); plt.show()
-# y_f.cumsum().plot(subplots = True, layout = (2,4)); plt.show()
-
-girf = pd.DataFrame(delta.reshape(-1,n_var), columns=y_f.columns)
-# Updated history
-omega_star = pd.concat(
-    [
-        (y_f.iloc[0] + delta - y.min())/(y.max() - y.min()),
-        omega.iloc[:-n_var]
-    ],
-    axis=0
-)
-
-for h in range(1,H+1):
-    dist = np.array([euclidean(i, omega_star.to_numpy()) for i in X_train.iloc[h:].to_numpy()])
-    dist = (dist - np.min(dist))/(np.max(dist) - np.min(dist))
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    # weig = (1/dist)/sum(1/dist)
-    girf.loc[h] = np.matmul(y.iloc[p+h:].drop(myoi).T, weig).values
-    girf.loc[h] = girf.loc[h] - y_f.loc[h]
-
-girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
-dataplot(girf)
-
-
-
-
 # New method
 
 # Supposing the history of interest is the recent month
@@ -107,7 +51,6 @@ for h in range(1,H+1):
     ci_df_y = pd.concat([ci_df_y, pd.concat([X_train, y_f], axis=0).iloc[ind]], axis=0)
     ci_df_y_lead1 = pd.concat([ci_df_y_lead1, pd.concat([X_train, y_f], axis=0).iloc[ind+1]], axis=0)
 
-
 # Select the unique values of the confidence interval dataframe
 ci_df_y = ci_df_y.loc[~ci_df_y.index.duplicated()]
 ci_df_y_lead1 = ci_df_y_lead1.loc[~ci_df_y_lead1.index.duplicated()]
@@ -137,7 +80,7 @@ girf = np.matmul(pd.concat([X_train , y_normalized.iloc[-1].to_frame().T], axis=
 ci_df_girf = pd.DataFrame(columns=y.columns)
 ci_df_girf = pd.concat([ci_df_girf, y_normalized.iloc[ind]], axis=0)
 ci_df_girf_lead1 = pd.DataFrame(columns=y.columns)
-ci_df_girf_lead1 = pd.concat([ci_df_girf, y_normalized.iloc[ind+1]], axis=0)
+ci_df_girf_lead1 = pd.concat([ci_df_girf_lead1, y_normalized.iloc[ind+1]], axis=0)
 
 for h in range(1,H+1):
     knn.fit(pd.concat([X_train, girf], axis=0).iloc[:-1])
@@ -148,10 +91,6 @@ for h in range(1,H+1):
     girf.loc[h] = np.matmul(pd.concat([X_train, girf], axis=0).iloc[ind+1].T, weig).values
     ci_df_girf = pd.concat([ci_df_girf, pd.concat([X_train, girf], axis=0).iloc[ind]], axis=0)
     ci_df_girf_lead1 = pd.concat([ci_df_girf_lead1, pd.concat([X_train, girf], axis=0).iloc[ind+1]], axis=0)
-
-
-girf = girf - y_f
-girf_cumul = girf.cumsum(axis=0)
 
 # Removing the duplicates in the confidence interval GIRF dataframe
 ci_df_girf = ci_df_girf.loc[~ci_df_girf.index.duplicated()]
@@ -165,30 +104,41 @@ girf_star_df = pd.DataFrame(columns=girf.columns)
 y_f_star_df = pd.DataFrame(columns=y_f.columns)
 
 for i in range(0,R):
-    X_train_ci = ci_df_y.sample(n = T, replace=True)
-    # Sort the dataframe with respect to date and horizon, separately
-    mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+    X_train_ci = ci_df_y.sample(n = ci_df_y.shape[0], replace=True)
+    # To sort the dataframe, mask the datetime and integer indexes
+    mask = np.array([True if type(i) != int else False for i in X_train_ci.index])
+    # Use the mask to obtain the lead vectors and sort both the original and lead dataframe
+    X_train_ci_lead1 = pd.concat([
+        ci_df_y_lead1.loc[X_train_ci.loc[mask].index + pd.DateOffset(months=1)].sort_index(),
+        ci_df_y_lead1.loc[X_train_ci.loc[~mask].index + 1].sort_index()
+    ], axis=0)
     X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
-    # X_train_ci_lead1 = ci_df.index.get_indexer(X_train_ci.loc[mask].index.unique())
     knn.fit(X_train_ci)
     # Bootstrapped forecast
     dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
+    y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
     # Bootstrapped GIRF
-    X_train_ci = ci_df_girf.sample(n = T-k, replace=True)
-    mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+    X_train_ci = ci_df_girf.sample(n = ci_df_girf.shape[0], replace=True)
+    mask = np.array([True if type(i) != int else False for i in X_train_ci.index])
+    # Use the mask to obtain the lead vectors and sort both the original and lead dataframe
+    X_train_ci_lead1 = pd.concat([
+        ci_df_girf_lead1.loc[X_train_ci.loc[mask].index + pd.DateOffset(months=1)].sort_index(),
+        ci_df_girf_lead1.loc[X_train_ci.loc[~mask].index + 1].sort_index()
+    ], axis=0)
     X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
     knn.fit(X_train_ci)
     dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
+    girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
 
+girf.iloc[0] = girf.iloc[0] - y_f.iloc[0]
 girf_star_df = girf_star_df - y_f_star_df
+
 # Confidence level
 conf = 0.90
 
@@ -199,9 +149,14 @@ for h in range(1,H+1):
     girf_star_df = pd.DataFrame(columns=girf.columns)
     y_f_star_df = pd.DataFrame(columns=y_f.columns)
     for i in range(0,R):
-        X_train_ci = ci_df_y.sample(n = T, replace=True)
-        # Sort the dataframe with respect to date and horizon, separately
-        mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+        X_train_ci = ci_df_y.sample(n = ci_df_y.shape[0], replace=True)
+        # To sort the dataframe, mask the datetime and integer indexes
+        mask = np.array([True if type(i) != int else False for i in X_train_ci.index])
+        # Use the mask to obtain the lead vectors and sort both the original and lead dataframe
+        X_train_ci_lead1 = pd.concat([
+            ci_df_y_lead1.loc[X_train_ci.loc[mask].index + pd.DateOffset(months=1)].sort_index(),
+            ci_df_y_lead1.loc[X_train_ci.loc[~mask].index + 1].sort_index()
+        ], axis=0)
         X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
         knn.fit(X_train_ci)
         # Bootstrapped forecast
@@ -209,19 +164,24 @@ for h in range(1,H+1):
         dist = dist[0,:]; ind = ind[0,:]
         dist = (dist - dist.min())/(dist.max() - dist.min())
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-        y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
+        y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
         # Bootstrapped GIRF
-        X_train_ci = ci_df_girf.sample(n = T, replace=True)
-        # Sort the dataframe with respect to date and horizon, separately
-        mask = np.array([True if type(i) != int else False for i in X_train_ci.reset_index()['index']])
+        X_train_ci = ci_df_girf.sample(n = ci_df_girf.shape[0], replace=True)
+        mask = np.array([True if type(i) != int else False for i in X_train_ci.index])
+        # Use the mask to obtain the lead vectors and sort both the original and lead dataframe
+        X_train_ci_lead1 = pd.concat([
+            ci_df_girf_lead1.loc[X_train_ci.loc[mask].index + pd.DateOffset(months=1)].sort_index(),
+            ci_df_girf_lead1.loc[X_train_ci.loc[~mask].index + 1].sort_index()
+        ], axis=0)
         X_train_ci = pd.concat([X_train_ci.loc[mask].sort_index(), X_train_ci.loc[~mask].sort_index()], axis=0)
         knn.fit(X_train_ci)
-        dist, ind = knn.kneighbors((girf+y_f).iloc[h-1].to_numpy().reshape(1,-1))
+        dist, ind = knn.kneighbors(girf.iloc[h-1].to_numpy().reshape(1,-1))
         dist = dist[0,:]; ind = ind[0,:]
         dist = (dist - dist.min())/(dist.max() - dist.min())
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-        girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci.iloc[ind].T, weig).to_frame().T])
+        girf_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
     girf_star_df = girf_star_df - y_f_star_df
+    girf.iloc[h-1] = girf.iloc[h-1] - y_f.iloc[h-1]
     girf_complete = pd.concat([
         girf_complete, pd.concat([2*girf.iloc[h] - girf_star_df.quantile(conf+(1-conf)/2), girf.iloc[h], 2*girf.iloc[h] - girf_star_df.quantile((1-conf)/2)], axis=1).T
     ])
@@ -230,7 +190,10 @@ girf_complete.index = pd.MultiIndex(levels=[range(0,H+1),['lower','GIRF','upper'
 girf_complete
 
 girf_complete.unstack(level=1)
-girf_complete[[y.columns[4]]].unstack().plot(); plt.show()
+girf_complete[[y.columns[3]]].unstack().plot(); plt.show()
+
+girf = girf - y_f
+girf_cumul = girf.cumsum(axis=0)
 
 girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
 dataplot(girf)
