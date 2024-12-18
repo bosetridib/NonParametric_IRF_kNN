@@ -19,36 +19,49 @@ delta = B_mat[:,0]
 
 # New method
 
-# Supposing the history of interest is the recent month
-histoi = str(y.index.date[-1])
-omega = y_normalized.loc[histoi]
-X_train = y_normalized.loc[:histoi]
+# Set the period of the of interest
+histoi = y.index.date[-1]
 
-# Initiated during the estimation.
-knn.fit(X_train)
-# Find the nearest neighbours and their distance from omega.
-dist, ind = knn.kneighbors(omega.to_numpy().reshape(1,-1))
+# Set the history of interest upto and NOT including the period
+omega = y_normalized.loc[:histoi - pd.DateOffset(months = 1)]
+X_train = y_normalized.loc[:histoi]
+T = X_train.shape[0]
+# The X_train contains observations upto and including the period T.
+
+# Fit the knn upto and NOT including the history of interest
+knn.fit(omega)
+
+# Find the nearest neighbours and their distance from period of interest.
+dist, ind = knn.kneighbors(X_train.loc[str(histoi)].to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-# Map the lead index
-y_f = np.matmul(y_normalized.iloc[ind+1].T, weig).to_frame().T
 
+# Map the lead indices of the nearest neighbours
+lead_index = omega.iloc[ind].index + pd.DateOffset(months=1)
+X_train_lead = X_train.loc[lead_index]
+y_f = np.matmul(X_train_lead.T, weig).to_frame().T
+# This is the forecast for the period of interest, ie. E(y_T) at h=0
+
+# The following would be the forecast of the y_T+1,+ 2,...H
+# The principle is same as before. Fit the data upto and NOT including the final period. Find
+# nearest neighbour of the final period and estimate the forecast. Update the data with the
+# forecasts, and repeat.
 for h in range(1,H+1):
-    knn.fit(pd.concat([X_train,y_f], axis=0).iloc[:-1])
+    omega_updated = pd.concat([omega,y_f], axis=0)
+    knn.fit(omega_updated.iloc[:-1])
     dist, ind = knn.kneighbors(y_f.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f.loc[h] = np.matmul(pd.concat([X_train, y_f], axis=0).iloc[ind+1].T, weig).values
+    lead_index = omega_updated.iloc[ind].index + pd.DateOffset(months=1)
+    X_train_lead = X_train.loc[lead_index]
+    y_f.loc[h] = np.matmul(X_train_lead.T, weig).values
 
 # Select the unique values of the confidence interval dataframe
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
-# y_f = y_f*(y.max() - y.min()) + y.min()
-# pd.concat([y_hat,y_f], axis=0).plot(subplots=True, layout=(2,4)); plt.show()
-
 # y_fvar = pd.DataFrame(results_var.forecast(y.iloc[-6:].to_numpy(), steps = 40), columns=y.columns)
 # dataplot(y_fvar)
 # y_fvar.cumsum().plot(subplots=True, layout=(2,4)); plt.show()
