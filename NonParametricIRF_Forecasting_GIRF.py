@@ -37,31 +37,26 @@ dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
-# Map the lead indices of the nearest neighbours
-lead_index = omega.iloc[ind].index + pd.DateOffset(months=1)
-omega_lead = pd.concat([omega, omega_mutated.to_frame().T], axis=0).loc[lead_index]
-y_f = np.matmul(omega_lead.T, weig).to_frame().T
-# This is the forecast for the period of interest, ie. E(y_T) at h=0
+# Estimated (NOT forecasted) the period of interest T
+y_f = np.matmul(omega.iloc[ind].T, weig).to_frame().T
+# This is the estimate for the period of interest, ie. E(y_T) at h=0
 
 # The following would be the forecast of the y_T+1,+2,...H
-# The principle is same as before. Fit the data upto and NOT including the final period. Find
+# The principle is to fit the data upto and NOT including the final period, find the
 # nearest neighbour of the final period and estimate the forecast. Update the data with the
 # forecasts, and repeat.
 for h in range(1,H+1):
-    omega_updated = pd.concat([omega,y_f], axis=0)
-    X_train = pd.concat([omega,y_f], axis=0)
+    omega_updated = pd.concat([omega,y_f], axis=0).iloc[:-1]
     knn.fit(omega_updated)
-    dist, ind = knn.kneighbors(X_train.iloc[-1].to_numpy().reshape(1,-1))
+    dist, ind = knn.kneighbors(y_f.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     lead_index = np.array(
-        [i+1 if type(i) == int else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
+        [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
     )
-    X_train_lead = X_train.loc[lead_index]
-    y_f.loc[h] = np.matmul(X_train_lead.T, weig).values
-
-# Select the unique values of the confidence interval dataframe
+    omega_lead = pd.concat([omega,y_f], axis=0).loc[lead_index]
+    y_f.loc[h] = np.matmul(omega_lead.T, weig).values
 
 # y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
@@ -70,9 +65,6 @@ for h in range(1,H+1):
 # y_fvar.cumsum().plot(subplots=True, layout=(2,4)); plt.show()
 
 # GIRFs
-omega = y_normalized.loc[:histoi - pd.DateOffset(months = 1)]
-X_train = y_normalized.loc[:histoi]
-# The X_train contains observations upto and including the period T.
 
 # The period of interest with shock
 omega_star = y_normalized.loc[str(histoi)] + delta
@@ -86,27 +78,31 @@ dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
-# Map the lead indices of the nearest neighbours
-lead_index = omega.iloc[ind].index + pd.DateOffset(months=1)
-X_train_lead = X_train.loc[lead_index]
-y_f_delta = np.matmul(X_train_lead.T, weig).to_frame().T
-# This is the forecast for the period of interest with shock, ie. E(y_T, delta) at h=0
+# The estimated period of interest with the shock. Note that since the period of
+# interest is being considered as the current period, at period T and h=0, there's
+# no forecasting, only estimation.
+y_f_delta = np.matmul(omega.iloc[ind].T, weig).to_frame().T
+# This is the estimation for the period of interest with shock, ie. E(y_T, delta) at h=0
 
 # The following would be the forecast of the y_T+1,+ 2,...H with shock
 # The principle is same as in forecasts.
 for h in range(1,H+1):
     omega_updated = pd.concat([omega,y_f_delta], axis=0).iloc[:-1]
-    X_train = pd.concat([omega,y_f_delta], axis=0)
     knn.fit(omega_updated)
-    dist, ind = knn.kneighbors(X_train.iloc[-1].to_numpy().reshape(1,-1))
+    dist, ind = knn.kneighbors(y_f_delta.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    lead_index = np.array([i+1 if type(i) == int else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index])
-    X_train_lead = X_train.loc[lead_index]
-    y_f_delta.loc[h] = np.matmul(X_train_lead.T, weig).values
+    lead_index = np.array(
+        [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
+    )
+    omega_lead = pd.concat([omega,y_f_delta], axis=0).loc[lead_index]
+    y_f_delta.loc[h] = np.matmul(omega_lead.T, weig).values
 
+# The raw IRF (without CI)
 # dataplot(y_f_delta - y_f)
+
+# The confidence interval
 # Set R: the number of simulations
 R = 100
 
@@ -115,32 +111,33 @@ y_f_delta_star_df = pd.DataFrame(columns=y_f_delta.columns)
 y_f_star_df = pd.DataFrame(columns=y_f.columns)
 
 for i in range(0,R):
-    X_train_ci = X_train.sample(n = T, replace=True).sort_index()
-    X_train_ci_lead1 = y_normalized.loc[X_train_ci.index + pd.DateOffset(months=1)]
-    knn.fit(X_train_ci)
-    # Bootstrapped forecast
-    dist, ind = knn.kneighbors(y_normalized.iloc[-1].to_numpy().reshape(1,-1))
+    # Bootstrapped Forecast
+    omega_resampled = omega.sample(n=T, replace=True).sort_index()
+    knn.fit(omega_resampled)
+    # Find the nearest neighbours and their distance from period of interest.
+    dist, ind = knn.kneighbors(omega_mutated.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
+    # Estimate (NOT forecast) at period of interest T
+    y_f_star_df.loc[i] = np.matmul(omega_resampled.iloc[ind].T, weig).values
     # Bootstrapped GIRF
-    X_train_ci = X_train.sample(n = T, replace=True).sort_index()
-    X_train_ci_lead1 = y_normalized.loc[X_train_ci.index + pd.DateOffset(months=1)]
-    knn.fit(X_train_ci)
     dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f_delta_star_df = pd.concat([y_f_delta_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
+    y_f_delta_star_df.loc[i] = np.matmul(omega_resampled.iloc[ind].T, weig).values
 
 girf_star_df = y_f_delta_star_df - y_f_star_df
 
 # Confidence level
 conf = 0.90
 
-# Multi-Index GIRF
-girf_complete = pd.concat([2*(y_f_delta.iloc[0] - y_f.iloc[0]) - girf_star_df.quantile(conf+(1-conf)/2), y_f_delta.iloc[0] - y_f.iloc[0], 2*(y_f_delta.iloc[0] - y_f.iloc[0]) - girf_star_df.quantile((1-conf)/2)], axis=1).T
+# GIRF CI at h=0
+girf_complete = pd.concat(
+    [2*(y_f_delta.iloc[0] - y_f.iloc[0]) - girf_star_df.quantile(conf+(1-conf)/2),
+     y_f_delta.iloc[0] - y_f.iloc[0],
+     2*(y_f_delta.iloc[0] - y_f.iloc[0]) - girf_star_df.quantile((1-conf)/2)],axis=1).T
 
 for h in range(1,H+1):
     y_f_delta_star_df = pd.DataFrame(columns=y_f_delta.columns)
