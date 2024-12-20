@@ -15,7 +15,7 @@ B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 H = 40
 
 # The desired shock
-delta = B_mat[:,0]
+delta = B_mat[:,2]
 
 # New method
 
@@ -99,75 +99,89 @@ for h in range(1,H+1):
     omega_lead = pd.concat([omega,y_f_delta], axis=0).loc[lead_index]
     y_f_delta.loc[h] = np.matmul(omega_lead.T, weig).values
 
+girf = y_f_delta - y_f
 # The raw IRF (without CI)
 # dataplot(y_f_delta - y_f)
 
 # The confidence interval
 # Set R: the number of simulations
 R = 100
-
-# GIRF_star and y_f_star at H=0
-y_f_delta_star_df = pd.DataFrame(columns=y_f_delta.columns)
-y_f_star_df = pd.DataFrame(columns=y_f.columns)
+# The following list will collect the simulated dataframes of the
+# GIRF for each resampling
+sim_list_df = []
 
 for i in range(0,R):
-    # Bootstrapped Forecast
+    # For each resampled omega, we will store different
+    # dataframes of the IRFs
     omega_resampled = omega.sample(n=T, replace=True).sort_index()
+    # Bootstrapped Forecast
     knn.fit(omega_resampled)
     # Find the nearest neighbours and their distance from period of interest.
     dist, ind = knn.kneighbors(omega_mutated.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    # Estimate (NOT forecast) at period of interest T
-    y_f_star_df.loc[i] = np.matmul(omega_resampled.iloc[ind].T, weig).values
-    # Bootstrapped GIRF
+    # Again, estimate (NOT forecast) at period of interest T
+    y_f_star = np.matmul(omega_resampled.iloc[ind].T, weig).to_frame().T
+    # Forecast for periods h=1,...,H
+    for h in range(1,H+1):
+        omega_updated = pd.concat([omega_resampled,y_f_star], axis=0).iloc[:-1]
+        knn.fit(omega_updated)
+        dist, ind = knn.kneighbors(y_f_star.iloc[-1].to_numpy().reshape(1,-1))
+        dist = dist[0,:]; ind = ind[0,:]
+        dist = (dist - dist.min())/(dist.max() - dist.min())
+        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+        lead_index = np.array(
+            [i+1 if type(i)==int else 0 if i==omega_resampled.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
+        )
+        # Pick the lead index from the original (not resampled) dataframe
+        omega_lead = pd.concat([omega,y_f_star], axis=0).loc[lead_index]
+        y_f_star.loc[h] = np.matmul(omega_lead.T, weig).values
+    # Bootstrapped Forecast with shock
+    knn.fit(omega_resampled)
+    # Find the nearest neighbours and their distance from period of interest.
     dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f_delta_star_df.loc[i] = np.matmul(omega_resampled.iloc[ind].T, weig).values
-
-girf_star_df = y_f_delta_star_df - y_f_star_df
+    y_f_delta_star = np.matmul(omega_resampled.iloc[ind].T, weig).to_frame().T
+    # Forecast of the y_T+1,+ 2,...H with shock
+    for h in range(1,H+1):
+        omega_updated = pd.concat([omega_resampled,y_f_delta_star], axis=0).iloc[:-1]
+        knn.fit(omega_updated)
+        dist, ind = knn.kneighbors(y_f_delta_star.iloc[-1].to_numpy().reshape(1,-1))
+        dist = dist[0,:]; ind = ind[0,:]
+        dist = (dist - dist.min())/(dist.max() - dist.min())
+        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+        lead_index = np.array(
+            [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
+        )
+        # Same as in Bootstrapped forecast
+        omega_lead = pd.concat([omega,y_f_delta_star], axis=0).loc[lead_index]
+        y_f_delta_star.loc[h] = np.matmul(omega_lead.T, weig).values
+    # Store the GIRFs in the list
+    sim_list_df.append(y_f_delta_star - y_f_star)
+# End of loop, and now the sim_list_df has each of the resampled dataframes
 
 # Confidence level
 conf = 0.90
+# Define the multi-index dataframe for each horizon and CI for each column
+girf_complete = pd.DataFrame(
+    columns = omega.columns,
+    index = pd.MultiIndex(
+        levels=[range(0,H+1),['lower','GIRF','upper']],
+        codes=[[x//3 for x in range(0,41*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
+    )
+)
 
-# GIRF CI at h=0
-girf_complete = pd.concat(
-    [2*(y_f_delta.iloc[0] - y_f.iloc[0]) - girf_star_df.quantile(conf+(1-conf)/2),
-     y_f_delta.iloc[0] - y_f.iloc[0],
-     2*(y_f_delta.iloc[0] - y_f.iloc[0]) - girf_star_df.quantile((1-conf)/2)],axis=1).T
+for h in range(0,H+1):
+    for col in omega.columns:
+        girf_complete[col][h,'lower'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_list_df], conf+(1-conf)/2)
+        girf_complete[col][h,'GIRF'] = girf[col][h]
+        girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_list_df], (1-conf)/2)
 
-for h in range(1,H+1):
-    y_f_delta_star_df = pd.DataFrame(columns=y_f_delta.columns)
-    y_f_star_df = pd.DataFrame(columns=y_f.columns)
-    for i in range(0,R):
-        X_train_ci = X_train.sample(n = T, replace=True).sort_index()
-        X_train_ci_lead1 = y_normalized.loc[X_train_ci.index + pd.DateOffset(months=1)]
-        knn.fit(X_train_ci)
-        # Bootstrapped forecast
-        dist, ind = knn.kneighbors(y_f.iloc[h-1].to_numpy().reshape(1,-1))
-        dist = dist[0,:]; ind = ind[0,:]
-        dist = (dist - dist.min())/(dist.max() - dist.min())
-        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-        y_f_star_df = pd.concat([y_f_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
-        # Bootstrapped GIRF
-        X_train_ci = X_train.sample(n = T, replace=True).sort_index()
-        X_train_ci_lead1 = y_normalized.loc[X_train_ci.index + pd.DateOffset(months=1)]
-        knn.fit(X_train_ci)
-        dist, ind = knn.kneighbors(y_f_delta.iloc[h-1].to_numpy().reshape(1,-1))
-        dist = dist[0,:]; ind = ind[0,:]
-        dist = (dist - dist.min())/(dist.max() - dist.min())
-        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-        y_f_delta_star_df = pd.concat([girf_star_df, np.matmul(X_train_ci_lead1.iloc[ind].T, weig).to_frame().T])
-    girf_star_df = y_f_delta_star_df - y_f_star_df
-    girf_complete = pd.concat([
-        girf_complete, pd.concat([2*(y_f_delta.iloc[h-1] - y_f.iloc[h-1]) - girf_star_df.quantile(conf+(1-conf)/2), y_f_delta.iloc[h-1] - y_f.iloc[h-1], 2*(y_f_delta.iloc[h-1] - y_f.iloc[h-1]) - girf_star_df.quantile((1-conf)/2)], axis=1).T
-    ])
-
-girf_complete.index = pd.MultiIndex(levels=[range(0,H+1),['lower','GIRF','upper']], codes=[[x//3 for x in range(0,41*3)],[0,1,2]*41], names=('Horizon', 'CI'))
 girf_complete
+# GIRF CI at h=0
 
 girf = y_f_delta - y_f
 girf_cumul = girf.cumsum(axis=0)
@@ -179,9 +193,9 @@ girf_complete[[y.columns[4]]].unstack().plot(); plt.show()
 girf[[y.columns[4]]].plot(); plt.show()
 
 girf_complete[[y.columns[3]]].unstack().cumsum().plot(); plt.show()
-girf[[y.columns[3]]].plot(); plt.show()
+np.exp(girf[[y.columns[3]]].cumsum()).plot(); plt.show()
 
-girf = pd.DataFrame(robust_transformer.inverse_transform(girf), columns=girf.columns)
+girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)
 dataplot(girf)
 girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
 dataplot(girf_cumul)
