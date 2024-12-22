@@ -181,9 +181,21 @@ for h in range(0,H+1):
         girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_list_df], (1-conf)/2)
 
 girf_complete
-# GIRF CI at h=0
 
-girf = y_f_delta - y_f
+irf_df = pd.concat([pd.DataFrame(np.arange(0,H+1).tolist()*24, columns=['Horizon']), pd.melt(girf_complete.unstack())], axis=1)
+irf_df.columns.values[1] = "variables"
+
+import seaborn as sns
+sns.set_theme(style="darkgrid")
+
+# Plot the responses for different events and regions
+sns.FacetGrid(irf_df, col="variables")
+sns.lineplot(x="Horizon", y="value", data=irf_df); plt.show()
+plt.show()
+
+# Plot the responses for different events and regions
+
+girf_complete[[y.columns[2]]].unstack().index
 girf_cumul = girf.cumsum(axis=0)
 
 girf_complete[[y.columns[2]]].unstack().plot(); plt.show()
