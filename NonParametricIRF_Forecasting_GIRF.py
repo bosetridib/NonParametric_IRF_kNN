@@ -15,7 +15,7 @@ B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 H = 40
 
 # The desired shock
-delta = B_mat[:,0]
+delta = B_mat[:,2]
 
 # New method
 
@@ -127,6 +127,7 @@ for i in range(0,R):
     for h in range(1,H+1):
         omega_updated = pd.concat([omega_resampled,y_f_star], axis=0).iloc[:-1]
         knn.fit(omega_updated)
+        print("\n counter:", i)
         dist, ind = knn.kneighbors(y_f_star.iloc[-1].to_numpy().reshape(1,-1))
         dist = dist[0,:]; ind = ind[0,:]
         dist = (dist - dist.min())/(dist.max() - dist.min())
@@ -149,6 +150,7 @@ for i in range(0,R):
     for h in range(1,H+1):
         omega_updated = pd.concat([omega_resampled,y_f_delta_star], axis=0).iloc[:-1]
         knn.fit(omega_updated)
+        print("\n counter:", i)
         dist, ind = knn.kneighbors(y_f_delta_star.iloc[-1].to_numpy().reshape(1,-1))
         dist = dist[0,:]; ind = ind[0,:]
         dist = (dist - dist.min())/(dist.max() - dist.min())
@@ -182,6 +184,7 @@ for h in range(0,H+1):
 
 girf_complete
 
+# pd.DataFrame(np.array([each_df[omega.columns[4]][7] for each_df in sim_list_df])).hist(); plt.show()
 irf_df = pd.concat([pd.DataFrame(np.arange(0,H+1).tolist()*24, columns=['Horizon']), pd.melt(girf_complete.unstack())], axis=1)
 irf_df.columns.values[1] = "variables"
 
