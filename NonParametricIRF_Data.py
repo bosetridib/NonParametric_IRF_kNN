@@ -26,24 +26,19 @@ epu = epu.drop(['Year', 'Month', 'Three_Component_Index'], axis=1)
 
 # See Macroeconomic impact of climate change Bilal Kanzig
 # For licencing contact: https://berkeleyearth.org/data/
-land = 1
 temperature = pd.read_fwf(
-    'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Complete_TAVG_complete.txt' if land == 1 else 'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Land_and_Ocean_complete.txt',
-    skiprows = 35 if land == 1 else 85, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']
+    'https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Complete_TAVG_complete.txt',
+    skiprows = 35, header=None, usecols = [0,1,2], names = ['Year','Month','TempAnomaly']
 )
 
-if (land != 1): temperature = temperature.loc[:2096]
-
-temperature.set_index(
+temperature = temperature.set_index(
     pd.to_datetime(
         temperature.Year.astype(str) + '-' + temperature.Month.astype(str),
         format="%Y-%m"
-    ), inplace=True
+    )
 )
-temperature.drop(['Year', 'Month'], axis=1, inplace=True)
-if (land != 1): temperature = temperature.astype('float64')
-
-# temperature.plot(); plt.show()
+temperature = temperature.drop(['Year', 'Month'], axis=1)
+# temperature.pct_change().plot(); plt.show()
 
 # Slicing the EPU data, temperature based on CPU dates
 epu = epu.loc[cpu.index[0]:cpu.index[-1]]
@@ -80,11 +75,13 @@ df = pd.concat([temperature, epu, cpu, macro_data], axis=1)
 
 # Dataframe for the modified data.
 df_mod = df.copy()
-df_mod[['Industrial_Production', 'PriceIndex_Producer', 'PriceIndex_PCE']] = np.log(df[['Industrial_Production', 'PriceIndex_Producer', 'PriceIndex_PCE']]).diff()
+df_mod[['TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']] = df_mod[['TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']].pct_change()
+
 df_mod = df_mod.rename(columns={
-    'Industrial_Production':'D_log_Industrial_Production',
-    'PriceIndex_Producer':'D_log_PriceIndex_Producer',
-    'PriceIndex_PCE':'D_log_PriceIndex_PCE'
+    'TempAnomaly':'Growth_TempAnomaly',
+    'Industrial_Production':'Growth_Industrial_Production',
+    'PriceIndex_Producer':'Growth_PriceIndex_Producer',
+    'PriceIndex_PCE':'Growth_PriceIndex_PCE'
 })
 
 df = df.dropna()

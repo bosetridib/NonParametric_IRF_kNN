@@ -15,7 +15,7 @@ B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 H = 40
 
 # The desired shock
-delta = B_mat[:,2]
+delta = B_mat[:,0]
 
 # New method
 

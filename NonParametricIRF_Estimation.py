@@ -8,9 +8,13 @@ warnings.filterwarnings('ignore')
 
 # Setting y
 # y = df.copy()
-y = df_mod.copy()
+# y = df_mod.copy()
+# The structural model we consider would have the Temperature Anomaly, CPU index,
+# Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey Bill 3 months market rate
+y = df_mod.iloc[:,[0,2,3,4,5,7]]
 # dataplot(y)
 # y = y[y.columns[1:8]]
+
 # VAR analysis
 model_var = sm.tsa.VAR(y)
 results_var = model_var.fit(6)
