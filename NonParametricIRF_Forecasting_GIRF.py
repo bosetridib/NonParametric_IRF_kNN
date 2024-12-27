@@ -1,3 +1,6 @@
+# Set the period of the of interest
+histoi = y.index.date[-1]
+
 # Import new and previous libraries, dataframe, variables, model, and IRF function.
 from NonParametricIRF_Estimation import *
 import warnings
@@ -19,13 +22,10 @@ delta = B_mat[:,0]
 
 # New method
 
-# Set the period of the of interest
-histoi = y.index.date[-1]
-
 # Set the history of interest upto and NOT including the period (T-1)
-omega = y_normalized.loc[:histoi - pd.DateOffset(months = 1)]
+omega = omega.loc[:histoi - pd.DateOffset(months = 1)]
 # Period of interest's realized data at T
-omega_mutated = y_normalized.loc[str(histoi)]
+omega_mutated = omega.loc[str(histoi)]
 T = omega.shape[0] + 1
 
 # Fit the knn upto and NOT including the history of interest
@@ -201,13 +201,19 @@ plt.show()
 girf_complete[[y.columns[2]]].unstack().index
 girf_cumul = girf.cumsum(axis=0)
 
+girf_complete[[y.columns[1]]].unstack().plot(); plt.show()
+girf[[y.columns[1]]].plot(); plt.show()
+
 girf_complete[[y.columns[2]]].unstack().plot(); plt.show()
 girf[[y.columns[2]]].plot(); plt.show()
+
+girf_complete[[y.columns[3]]].unstack().plot(); plt.show()
+girf[[y.columns[3]]].plot(); plt.show()
 
 girf_complete[[y.columns[4]]].unstack().plot(); plt.show()
 girf[[y.columns[4]]].plot(); plt.show()
 
-girf_complete[[y.columns[3]]].unstack().cumsum().plot(); plt.show()
+girf_complete[[y.columns[2]]].unstack().cumsum().plot(); plt.show()
 np.exp(girf[[y.columns[3]]].cumsum()).plot(); plt.show()
 
 girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)

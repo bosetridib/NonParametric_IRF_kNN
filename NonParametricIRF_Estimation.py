@@ -15,6 +15,9 @@ y = df_mod.iloc[:,[0,2,3,4,5,7]]
 # dataplot(y)
 # y = y[y.columns[1:8]]
 
+# Import the history of index
+from NonParametricIRF_Forecasting_GIRF import histoi
+
 # VAR analysis
 model_var = sm.tsa.VAR(y)
 results_var = model_var.fit(6)
@@ -44,6 +47,14 @@ results_var = model_var.fit(6)
 # Robust scaling
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
+
+robust_transformer.fit(df_mod)
+omega = pd.DataFrame(
+    robust_transformer.transform(df_mod),
+    columns=df_mod.columns, index=df_mod.index
+)
+# dataplot(omega)
+
 robust_transformer.fit(y)
 y_normalized = pd.DataFrame(
     robust_transformer.transform(y),
@@ -65,17 +76,15 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 y_hat = pd.DataFrame(index=y.index, columns=y.columns)
 # If lagged=0, then lags and leads are both considered. If lagged!=0,
 # then only lags are considered, not leads.
-lagged = 0
 
-for t in (y.index if (lagged == 0) else y.index[k:]):
-    knn.fit(
-        y_normalized.drop(t) if (lagged == 0) else y_normalized.loc[:t - pd.DateOffset(months=1)]
-    )
+for t in y.index:
+    knn.fit(y_normalized.drop(t))
     dist, ind = knn.kneighbors(y_normalized.loc[t].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_hat.loc[t] = np.matmul(y_normalized.drop(t).iloc[ind].T, weig)
+    indices = y_normalized.drop(t).iloc[ind].index
+    y_hat.loc[t] = np.matmul(y.loc[indices].T, weig)
 
 # Compare the fitted values
 # dataplot(y_hat)
@@ -84,25 +93,23 @@ for t in (y.index if (lagged == 0) else y.index[k:]):
 # The residuals
 u = pd.DataFrame(index=y.index, columns=y.columns)
 
-for t in (u.index if (lagged == 0) else u.index[k:]):
-    knn.fit(
-        y_normalized.drop(t) if (lagged == 0) else y_normalized.loc[:t - pd.DateOffset(months=1)]
-    )
+for t in u.index:
+    knn.fit(y_normalized.drop(t))
     dist, ind = knn.kneighbors(y_normalized.loc[t].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    u.loc[t] = np.matmul((y_normalized.drop(t)-y_hat.drop(t)).iloc[ind].T, weig)
-    u.loc[t] = u.loc[t]
+    indices = y_normalized.drop(t).iloc[ind].index
+    u.loc[t] = np.matmul((y-y_hat).loc[indices].T, weig)
 
 # dataplot(u)
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
 
-# u.plot(
-#     subplots=True, layout=(2,4), color = 'blue',
-#     ax=y_normalized.plot(
-#         subplots=True, layout=(2,4), color = 'black'
+# y.plot(
+#     subplots=True, layout=(2,3), color = 'blue',
+#     ax=u.plot(
+#         subplots=True, layout=(2,3), color = 'red'
 #     )
 # )
 # plt.show()
