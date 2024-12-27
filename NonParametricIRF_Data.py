@@ -75,11 +75,14 @@ df = pd.concat([temperature, epu, cpu, macro_data], axis=1)
 
 # Dataframe for the modified data.
 df_mod = df.copy()
-df_mod[['TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']] = df_mod[[
-    'TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE'
-]].pct_change()
+# df_mod[['TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']] = df_mod[[
+#     'TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE'
+# ]].pct_change()
 
-# df_mod[['TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']] = np.log(df_mod[['TempAnomaly','Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']]).diff()
+df_mod[['TempAnomaly']] = df_mod[['TempAnomaly']].pct_change()
+df_mod[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE']] = np.log(df_mod[[
+    'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE'
+]]).diff()
 
 df_mod = df_mod.rename(columns={
     'TempAnomaly':'Growth_TempAnomaly',

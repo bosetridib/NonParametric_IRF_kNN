@@ -6,6 +6,9 @@ from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.filterwarnings('ignore')
 
+# Set the period of the of interest
+histoi = df.index.date[-1]
+
 # Setting y
 # y = df.copy()
 # y = df_mod.copy()
@@ -14,9 +17,6 @@ warnings.filterwarnings('ignore')
 y = df_mod.iloc[:,[0,2,3,4,5,7]]
 # dataplot(y)
 # y = y[y.columns[1:8]]
-
-# Import the history of index
-from NonParametricIRF_Forecasting_GIRF import histoi
 
 # VAR analysis
 model_var = sm.tsa.VAR(y)

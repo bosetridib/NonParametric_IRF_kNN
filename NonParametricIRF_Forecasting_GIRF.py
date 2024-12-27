@@ -1,6 +1,3 @@
-# Set the period of the of interest
-histoi = y.index.date[-1]
-
 # Import new and previous libraries, dataframe, variables, model, and IRF function.
 from NonParametricIRF_Estimation import *
 import warnings
