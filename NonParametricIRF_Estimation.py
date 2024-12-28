@@ -6,17 +6,18 @@ from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set the period of the of interest
-histoi = df.index.date[-1]
-
+# Import the period of the of interest
+from NonParametricIRF import histoi
+histoi = df.index.date[-5]
 # Setting y
 # y = df.copy()
 # y = df_mod.copy()
 # The structural model we consider would have the Temperature Anomaly, CPU index,
-# Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey Bill 3 months market rate
+# Industrial Production, Unemployment Rate, Producer's Price Index,
+# Treasurey Bill 3 months market rate
 y = df_mod.iloc[:,[0,2,3,4,5,7]]
 # dataplot(y)
-# y = y[y.columns[1:8]]
+y = y.loc[:histoi]
 
 # VAR analysis
 model_var = sm.tsa.VAR(y)
@@ -48,19 +49,15 @@ results_var = model_var.fit(6)
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
 
-robust_transformer.fit(df_mod)
-omega = pd.DataFrame(
-    robust_transformer.transform(df_mod),
-    columns=df_mod.columns, index=df_mod.index
-)
-# dataplot(omega)
-
 robust_transformer.fit(y)
 y_normalized = pd.DataFrame(
     robust_transformer.transform(y),
     columns=y.columns, index=y.index
 )
 # dataplot(y_normalized)
+
+omega = y_normalized.iloc[:-1]
+# dataplot(omega)
 
 # Generating the residuals u_t by estimating y_t
 T = y.shape[0]
