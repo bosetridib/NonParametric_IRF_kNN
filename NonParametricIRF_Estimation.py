@@ -7,17 +7,17 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Import the period of the of interest
-from NonParametricIRF import histoi
 histoi = df.index.date[-5]
 # Setting y
+# The structural model we consider would have the Temperature Anomaly, CPU index,
+# Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey
+# Bill 3 months market rate, represented by following variables of interest
 # y = df.copy()
 # y = df_mod.copy()
-# The structural model we consider would have the Temperature Anomaly, CPU index,
-# Industrial Production, Unemployment Rate, Producer's Price Index,
-# Treasurey Bill 3 months market rate
-y = df_mod.iloc[:,[0,2,3,4,5,7]]
+voi = [0,2,3,4,5,7]
+y = df_mod.iloc[:,voi]
+
 # dataplot(y)
-y = y.loc[:histoi]
 
 # VAR analysis
 model_var = sm.tsa.VAR(y)
@@ -44,23 +44,27 @@ results_var = model_var.fit(6)
 # y_normalized = (y - y.min())/((y.max() - y.min()))
 # Standardization
 # y_normalized = (y - y.mean())/y.std()
+omega = df_mod.copy()
+# omega = omega.loc[omega['Unemployment_Rate'] < 5]
+
 
 # Robust scaling
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
 
-robust_transformer.fit(y)
-y_normalized = pd.DataFrame(
-    robust_transformer.transform(y),
-    columns=y.columns, index=y.index
+robust_transformer.fit(df_mod)
+omega_scaled = pd.DataFrame(
+    robust_transformer.transform(df_mod),
+    columns=df_mod.columns, index=df_mod.index
 )
-# dataplot(y_normalized)
-
-omega = y_normalized.iloc[:-1]
+# dataplot(omega_scaled)
+omega_mutated = omega_scaled.loc[str(histoi)]
+omega = omega.loc[:histoi - pd.DateOffset(months = 1)]
+omega_scaled = omega.loc[:histoi - pd.DateOffset(months = 1)]
 # dataplot(omega)
 
-# Generating the residuals u_t by estimating y_t
-T = y.shape[0]
+# Generating the residuals u_t by estimating omega_t
+T = omega.shape[0]+1
 k = round(np.sqrt(T), ndigits=None)
 knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 # For mahalanobis distance, use the function as
@@ -69,44 +73,44 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 #     metric_params = {'VI': np.linalg.inv(y_normalized.cov())}
 # )
 
-# Estimated y
-y_hat = pd.DataFrame(index=y.index, columns=y.columns)
+# Estimated omega
+omega_hat = pd.DataFrame(index=omega.index, columns=omega.columns)
 # If lagged=0, then lags and leads are both considered. If lagged!=0,
 # then only lags are considered, not leads.
 
-for t in y.index:
-    knn.fit(y_normalized.drop(t))
-    dist, ind = knn.kneighbors(y_normalized.loc[t].to_numpy().reshape(1,-1))
+for t in omega.index:
+    knn.fit(omega_scaled.drop(t))
+    dist, ind = knn.kneighbors(omega_scaled.loc[t].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    indices = y_normalized.drop(t).iloc[ind].index
-    y_hat.loc[t] = np.matmul(y.loc[indices].T, weig)
+    indices = omega.drop(t).iloc[ind].index
+    omega_hat.loc[t] = np.matmul(omega.loc[indices].T, weig)
 
 # Compare the fitted values
-# dataplot(y_hat)
+# dataplot(omega_hat)
 # dataplot(results_var.fittedvalues)
 
 # The residuals
-u = pd.DataFrame(index=y.index, columns=y.columns)
+u = pd.DataFrame(index=omega.index, columns=omega.columns)
 
 for t in u.index:
-    knn.fit(y_normalized.drop(t))
-    dist, ind = knn.kneighbors(y_normalized.loc[t].to_numpy().reshape(1,-1))
+    knn.fit(omega_scaled.drop(t))
+    dist, ind = knn.kneighbors(omega_scaled.loc[t].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    indices = y_normalized.drop(t).iloc[ind].index
-    u.loc[t] = np.matmul((y-y_hat).loc[indices].T, weig)
+    indices = omega.drop(t).iloc[ind].index
+    u.loc[t] = np.matmul((omega-omega_hat).loc[indices].T, weig)
 
 # dataplot(u)
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
 
-# y.plot(
-#     subplots=True, layout=(2,3), color = 'blue',
+# omega.plot(
+#     subplots=True, layout=(2,4), color = 'blue',
 #     ax=u.plot(
-#         subplots=True, layout=(2,3), color = 'red'
+#         subplots=True, layout=(2,4), color = 'red'
 #     )
 # )
 # plt.show()

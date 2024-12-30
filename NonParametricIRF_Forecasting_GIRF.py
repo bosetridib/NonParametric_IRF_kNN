@@ -7,35 +7,19 @@ warnings.filterwarnings('ignore')
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
 
-# Retrieve shocks through Cholesky decomposition
-B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
-# Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
-
+# Forecasting
 # Horizon "in the middle"
 H = 40
 
-# The desired shock
-delta = B_mat[:,0]
-
-# New method
-
-# Set the history of interest upto and NOT including the period (T-1)
-omega = omega.loc[:histoi - pd.DateOffset(months = 1)]
-# Period of interest's realized data at T
-omega_mutated = omega.loc[str(histoi)]
-T = omega.shape[0] + 1
-
 # Fit the knn upto and NOT including the history of interest
-knn.fit(omega)
-
+knn.fit(omega_scaled)
 # Find the nearest neighbours and their distance from period of interest.
 dist, ind = knn.kneighbors(omega_mutated.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-
 # Estimated (NOT forecasted) the period of interest T
-y_f = np.matmul(omega.iloc[ind].T, weig).to_frame().T
+y_f = np.matmul(omega.iloc[ind,voi].T, weig).to_frame().T
 # This is the estimate for the period of interest, ie. E(y_T) at h=0
 
 # The following would be the forecast of the y_T+1,+2,...H
@@ -63,8 +47,14 @@ for h in range(1,H+1):
 
 # GIRFs
 
+# Retrieve shocks through Cholesky decomposition
+B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
+# Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
+# The desired shock
+delta = B_mat[:,0]
+
 # The period of interest with shock
-omega_star = y_normalized.loc[str(histoi)] + delta
+omega_star = omega_mutated + delta
 
 # Fit the knn upto and NOT including the history of interest
 knn.fit(omega)
