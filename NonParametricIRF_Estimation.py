@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Import the period of the of interest
-histoi = df.index.date[-5]
+histoi = df.index.date[-1]
 # Setting y
 # The structural model we consider would have the Temperature Anomaly, CPU index,
 # Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey

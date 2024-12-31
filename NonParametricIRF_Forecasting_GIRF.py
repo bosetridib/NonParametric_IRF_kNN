@@ -19,27 +19,23 @@ dist = dist[0,:]; ind = ind[0,:]
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimated (NOT forecasted) the period of interest T
-y_f = np.matmul(omega.iloc[ind,voi].T, weig).to_frame().T
+y_f = np.matmul(omega.iloc[ind].T, weig).to_frame().T
 # This is the estimate for the period of interest, ie. E(y_T) at h=0
 
 # The following would be the forecast of the y_T+1,+2,...H
 # The principle is to fit the data upto and NOT including the final period, find the
 # nearest neighbour of the final period and estimate the forecast. Update the data with the
 # forecasts, and repeat.
+
 for h in range(1,H+1):
-    omega_updated = pd.concat([omega,y_f], axis=0).iloc[:-1]
-    knn.fit(omega_updated)
     dist, ind = knn.kneighbors(y_f.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    lead_index = np.array(
-        [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
-    )
-    omega_lead = pd.concat([omega,y_f], axis=0).loc[lead_index]
+    lead_index = np.array([omega_mutated if i==omega_scaled.index[-1] else i + pd.DateOffset(months=1) for i in omega_scaled.iloc[ind].index])
+    omega_lead = pd.concat([omega,omega_mutated.to_frame().T], axis=0).loc[lead_index]
     y_f.loc[h] = np.matmul(omega_lead.T, weig).values
 
-# y_f = pd.DataFrame(robust_transformer.inverse_transform(y_f), columns=girf.columns)
 # dataplot(y_f)
 # y_fvar = pd.DataFrame(results_var.forecast(y.iloc[-6:].to_numpy(), steps = 40), columns=y.columns)
 # dataplot(y_fvar)
@@ -51,13 +47,13 @@ for h in range(1,H+1):
 B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 # Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
 # The desired shock
-delta = B_mat[:,0]
+delta = B_mat[:,2]
 
 # The period of interest with shock
 omega_star = omega_mutated + delta
 
 # Fit the knn upto and NOT including the history of interest
-knn.fit(omega)
+knn.fit(omega_scaled)
 
 # Find the nearest neighbours and their distance from period of interest.
 dist, ind = knn.kneighbors(omega_star.to_numpy().reshape(1,-1))
@@ -74,21 +70,24 @@ y_f_delta = np.matmul(omega.iloc[ind].T, weig).to_frame().T
 # The following would be the forecast of the y_T+1,+ 2,...H with shock
 # The principle is same as in forecasts.
 for h in range(1,H+1):
-    omega_updated = pd.concat([omega,y_f_delta], axis=0).iloc[:-1]
-    knn.fit(omega_updated)
+    # omega_updated = pd.concat([omega,y_f_delta], axis=0).iloc[:-1]
+    # knn.fit(omega_updated)
     dist, ind = knn.kneighbors(y_f_delta.iloc[-1].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    lead_index = np.array(
-        [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
-    )
-    omega_lead = pd.concat([omega,y_f_delta], axis=0).loc[lead_index]
+    lead_index = np.array([omega_star if i==omega_scaled.index[-1] else i + pd.DateOffset(months=1) for i in omega_scaled.iloc[ind].index])
+    omega_lead = pd.concat([omega,omega_star.to_frame().T], axis=0).loc[lead_index]
     y_f_delta.loc[h] = np.matmul(omega_lead.T, weig).values
 
 girf = y_f_delta - y_f
 # The raw IRF (without CI)
 # dataplot(y_f_delta - y_f)
+
+    # lead_index = np.array(
+    #     [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
+    # )
+
 
 # The confidence interval
 # Set R: the number of simulations
