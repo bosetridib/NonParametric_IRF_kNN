@@ -82,7 +82,9 @@ for h in range(1,H+1):
 
 girf = y_f_delta - y_f
 # The raw IRF (without CI)
-# dataplot(y_f_delta - y_f)
+# dataplot((y_f_delta - y_f).cumsum())
+# dataplot(y_f_delta)
+# dataplot(y_f)
 
     # lead_index = np.array(
     #     [i+1 if type(i)==int else 0 if i==omega.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index]
