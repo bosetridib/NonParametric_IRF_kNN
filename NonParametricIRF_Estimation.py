@@ -6,16 +6,14 @@ from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.filterwarnings('ignore')
 
-# Import the period of the of interest
-histoi = df.index.date[-1]
 # Setting y
 # The structural model we consider would have the Temperature Anomaly, CPU index,
 # Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey
 # Bill 3 months market rate, represented by following variables of interest
 # y = df.copy()
-# y = df_mod.copy()
-voi = [0,2,3,4,5,7]
-y = df_mod.iloc[:,voi]
+y = df_mod.copy()
+# voi = [0,2,3,4,5,7]
+# y = df_mod.iloc[:,voi]
 
 # dataplot(y)
 
@@ -45,22 +43,23 @@ results_var = model_var.fit(6)
 # Standardization
 # y_normalized = (y - y.mean())/y.std()
 omega = df_mod.copy()
-# omega = omega.loc[omega['Unemployment_Rate'] < 5]
+# omega = omega.loc[omega['Unemployment_Rate'] >= 6]
 
+histoi = omega.index.date[-1]
 
 # Robust scaling
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
 
-robust_transformer.fit(df_mod)
+robust_transformer.fit(omega)
 omega_scaled = pd.DataFrame(
-    robust_transformer.transform(df_mod),
-    columns=df_mod.columns, index=df_mod.index
+    robust_transformer.transform(omega),
+    columns=omega.columns, index=omega.index
 )
 # dataplot(omega_scaled)
 omega_mutated = omega_scaled.loc[str(histoi)]
+omega_scaled = omega_scaled.loc[:histoi - pd.DateOffset(months = 1)]
 omega = omega.loc[:histoi - pd.DateOffset(months = 1)]
-omega_scaled = omega.loc[:histoi - pd.DateOffset(months = 1)]
 # dataplot(omega)
 
 # Generating the residuals u_t by estimating omega_t
@@ -74,25 +73,23 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 # )
 
 # Estimated omega
-omega_hat = pd.DataFrame(index=omega.index, columns=omega.columns)
-# If lagged=0, then lags and leads are both considered. If lagged!=0,
-# then only lags are considered, not leads.
+omega_hat = pd.DataFrame(index=omega_scaled.index, columns=omega_scaled.columns)
 
-for t in omega.index:
+for t in omega_scaled.index:
     knn.fit(omega_scaled.drop(t))
     dist, ind = knn.kneighbors(omega_scaled.loc[t].to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    indices = omega.drop(t).iloc[ind].index
-    omega_hat.loc[t] = np.matmul(omega.loc[indices].T, weig)
+    indices = omega_scaled.drop(t).iloc[ind].index
+    omega_hat.loc[t] = np.matmul(omega_scaled.loc[indices].T, weig)
 
 # Compare the fitted values
 # dataplot(omega_hat)
 # dataplot(results_var.fittedvalues)
 
 # The residuals
-u = pd.DataFrame(index=omega.index, columns=omega.columns)
+u = pd.DataFrame(index=omega_scaled.index, columns=omega_scaled.columns)
 
 for t in u.index:
     knn.fit(omega_scaled.drop(t))
@@ -100,14 +97,14 @@ for t in u.index:
     dist = dist[0,:]; ind = ind[0,:]
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    indices = omega.drop(t).iloc[ind].index
-    u.loc[t] = np.matmul((omega-omega_hat).loc[indices].T, weig)
+    indices = omega_scaled.drop(t).iloc[ind].index
+    u.loc[t] = np.matmul((omega_scaled-omega_hat).loc[indices].T, weig)
 
 # dataplot(u)
 # Compare the residuals to simple VAR
 # dataplot(results_var.resid)
 
-# omega.plot(
+# omega_scaled.plot(
 #     subplots=True, layout=(2,4), color = 'blue',
 #     ax=u.plot(
 #         subplots=True, layout=(2,4), color = 'red'
