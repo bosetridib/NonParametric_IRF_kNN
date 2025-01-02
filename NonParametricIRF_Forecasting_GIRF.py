@@ -49,7 +49,8 @@ for h in range(1,H+1):
 B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 # Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
 # The desired shock
-delta = B_mat[:,2]
+shock = 0
+delta = B_mat[:,shock]
 
 # The period of interest with shock
 omega_star = omega_mutated + delta
@@ -91,7 +92,7 @@ girf = y_f_delta - y_f
 
 # The confidence interval
 # Set R: the number of simulations
-R = 200
+R = 50
 # The following list will collect the simulated dataframes of the
 # GIRF for each resampling
 sim_list_df = []
@@ -164,41 +165,8 @@ for h in range(0,H+1):
         girf_complete[col][h,'GIRF'] = girf[col][h]
         girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_list_df], (1-conf)/2)
 
-girf_complete
 girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)
-# pd.DataFrame(np.array([each_df[omega.columns[2]][7] for each_df in sim_list_df])).hist(); plt.show()
-# irf_df = pd.concat([pd.DataFrame(np.arange(0,H+1).tolist()*24, columns=['Horizon']), pd.melt(girf_complete.unstack())], axis=1)
-# irf_df.columns.values[1] = "variables"
+girf_complete = girf_complete.unstack()
+multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
 
-# import seaborn as sns
-# sns.set_theme(style="darkgrid")
-
-# # Plot the responses for different events and regions
-# sns.FacetGrid(irf_df, col="variables")
-# sns.lineplot(x="Horizon", y="value", data=irf_df); plt.show()
-# plt.show()
-
-# Plot the responses for different events and regions
-
-girf_complete[[y.columns[2]]].unstack().index
-girf_cumul = girf.cumsum(axis=0)
-
-girf_complete[[y.columns[0]]].unstack().plot(); plt.show()
-girf[[y.columns[0]]].plot(); plt.show()
-
-girf_complete[[y.columns[2]]].unstack().plot(); plt.show()
-girf[[y.columns[2]]].plot(); plt.show()
-
-girf_complete[[y.columns[3]]].unstack().plot(); plt.show()
-girf[[y.columns[3]]].plot(); plt.show()
-
-girf_complete[[y.columns[4]]].unstack().plot(); plt.show()
-girf[[y.columns[4]]].plot(); plt.show()
-
-girf_complete[[y.columns[3]]].unstack().cumsum().plot(); plt.show()
-np.exp(girf[[y.columns[3]]].cumsum()).plot(); plt.show()
-
-girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)
-dataplot(girf)
-girf_cumul = pd.DataFrame(robust_transformer.inverse_transform(girf_cumul), columns=girf.columns)
-dataplot(girf_cumul)
+girfplot(girf_complete, shock)
