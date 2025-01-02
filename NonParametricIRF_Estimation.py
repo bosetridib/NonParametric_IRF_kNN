@@ -51,6 +51,12 @@ histoi = omega.index.date[-1]
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
 
+robust_transformer.fit(df_mod)
+df_mod_scaled = pd.DataFrame(
+    robust_transformer.transform(df_mod),
+    columns=df_mod.columns, index=df_mod.index
+)
+
 robust_transformer.fit(omega)
 omega_scaled = pd.DataFrame(
     robust_transformer.transform(omega),

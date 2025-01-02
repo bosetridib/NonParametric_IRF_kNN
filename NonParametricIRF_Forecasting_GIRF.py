@@ -35,7 +35,7 @@ for h in range(1,H+1):
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     lead_index = np.array([i+1 if type(i)==int else 0 if i==omega_scaled.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index])
-    omega_lead = pd.concat([omega_scaled, y_f]).loc[lead_index]
+    omega_lead = pd.concat([df_mod_scaled, y_f]).loc[lead_index]
     y_f.loc[h] = np.matmul(omega_lead.T, weig).values
 
 # dataplot(y_f)
@@ -79,7 +79,7 @@ for h in range(1,H+1):
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     lead_index = np.array([i+1 if type(i)==int else 0 if i==omega_scaled.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index])
-    omega_lead = pd.concat([omega_scaled, y_f_delta]).loc[lead_index]
+    omega_lead = pd.concat([df_mod_scaled, y_f_delta]).loc[lead_index]
     y_f_delta.loc[h] = np.matmul(omega_lead.T, weig).values
 
 girf = y_f_delta - y_f
@@ -91,7 +91,7 @@ girf = y_f_delta - y_f
 
 # The confidence interval
 # Set R: the number of simulations
-R = 100
+R = 200
 # The following list will collect the simulated dataframes of the
 # GIRF for each resampling
 sim_list_df = []
@@ -120,7 +120,7 @@ for i in range(0,R):
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
         # Pick the lead index from the original (not resampled) dataframe
         lead_index = np.array([i+1 if type(i)==int else 0 if i==omega_resampled.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index])
-        omega_lead = pd.concat([omega_scaled, y_f_star]).loc[lead_index]
+        omega_lead = pd.concat([df_mod_scaled, y_f_star]).loc[lead_index]
         y_f_star.loc[h] = np.matmul(omega_lead.T, weig).values
     # Bootstrapped Forecast with shock
     # Find the nearest neighbours and their distance from period of interest.
@@ -141,7 +141,7 @@ for i in range(0,R):
         weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
         lead_index = np.array([i+1 if type(i)==int else 0 if i==omega_resampled.index[-1] else i + pd.DateOffset(months=1) for i in omega_updated.iloc[ind].index])
         # Same as in Bootstrapped forecast
-        omega_lead = pd.concat([omega_scaled,y_f_delta_star], axis=0).loc[lead_index]
+        omega_lead = pd.concat([df_mod_scaled,y_f_delta_star], axis=0).loc[lead_index]
         y_f_delta_star.loc[h] = np.matmul(omega_lead.T, weig).values
     # Store the GIRFs in the list
     sim_list_df.append(y_f_delta_star - y_f_star)
@@ -166,7 +166,7 @@ for h in range(0,H+1):
 
 girf_complete
 girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)
-# pd.DataFrame(np.array([each_df[omega.columns[4]][7] for each_df in sim_list_df])).hist(); plt.show()
+# pd.DataFrame(np.array([each_df[omega.columns[1]][5] for each_df in sim_list_df])).hist(); plt.show()
 # irf_df = pd.concat([pd.DataFrame(np.arange(0,H+1).tolist()*24, columns=['Horizon']), pd.melt(girf_complete.unstack())], axis=1)
 # irf_df.columns.values[1] = "variables"
 
