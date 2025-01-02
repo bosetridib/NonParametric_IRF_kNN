@@ -20,7 +20,6 @@ def irfplot(irf,df,c):
 def girfplot(girf_complete, shock):
     fig, ax = plt.subplots(2,4)
     c = 0
-    shock = 0
     for i in range(2):
         for j in range(4):
             ax[i,j].plot(girf_complete[multi_index_col[c][0]])
