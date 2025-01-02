@@ -166,7 +166,7 @@ for h in range(0,H+1):
 
 girf_complete
 girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)
-# pd.DataFrame(np.array([each_df[omega.columns[1]][5] for each_df in sim_list_df])).hist(); plt.show()
+# pd.DataFrame(np.array([each_df[omega.columns[2]][7] for each_df in sim_list_df])).hist(); plt.show()
 # irf_df = pd.concat([pd.DataFrame(np.arange(0,H+1).tolist()*24, columns=['Horizon']), pd.melt(girf_complete.unstack())], axis=1)
 # irf_df.columns.values[1] = "variables"
 
