@@ -92,7 +92,7 @@ girf = y_f_delta - y_f
 
 # The confidence interval
 # Set R: the number of simulations
-R = 100
+R = 1000
 # The following list will collect the simulated dataframes of the
 # GIRF for each resampling
 sim_list_df = []
@@ -171,3 +171,50 @@ multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_c
 
 # Plot
 girfplot(df_mod, girf_complete, multi_index_col, shock)
+
+import seaborn as sns
+sns.set_theme(style="ticks")
+
+dots = sns.load_dataset("dots")
+
+# Define the palette as a list to specify exact values
+palette = sns.color_palette("rocket_r")
+
+# Plot the lines on two facets
+sns.relplot(
+    data=dots,
+    x="time", y="firing_rate",
+    hue="coherence", size="choice", col="align",
+    kind="line", size_order=["T1", "T2"], palette=palette,
+    height=5, aspect=.75, facet_kws=dict(sharex=False),
+)
+plt.show()
+
+girf_complete = pd.DataFrame(
+    columns = omega.columns,
+    index = pd.MultiIndex(
+        levels=[range(0,H+1),['lower','GIRF','upper']],
+        codes=[[x//3 for x in range(0,41*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
+    )
+)
+
+for h in range(0,H+1):
+    for col in omega_scaled.columns:
+        girf_complete[col][h,'lower'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_list_df], conf+(1-conf)/2)
+        girf_complete[col][h,'GIRF'] = girf[col][h]
+        girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_list_df], (1-conf)/2)
+
+girf_complete = pd.DataFrame(robust_transformer.inverse_transform(girf_complete), columns=girf_complete.columns, index=girf_complete.index)
+girf_complete = pd.melt(girf_complete.unstack())
+girf_complete.columns.values[0]="Variables"
+girf_complete = pd.concat([girf_complete,pd.DataFrame([i for i in range(0,H+1)]*24, columns=["Horizon"])], axis=1)
+
+sns.relplot(
+    data=girf_complete,
+    x="Horizon", y="value",
+    hue="CI", col="Variables",
+    kind="line", palette=palette,
+    height=5, aspect=.75, facet_kws=dict(sharex=False),
+)
+plt.show()
+dots
