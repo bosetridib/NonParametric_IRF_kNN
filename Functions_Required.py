@@ -17,7 +17,7 @@ def irfplot(irf,df,c):
     plt.tight_layout()
     fig.show()
 
-def girfplot(girf_complete, shock):
+def girfplot(df_mod, girf_complete, multi_index_col, shock):
     fig, ax = plt.subplots(2,4)
     c = 0
     for i in range(2):

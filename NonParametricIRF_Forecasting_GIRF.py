@@ -92,7 +92,7 @@ girf = y_f_delta - y_f
 
 # The confidence interval
 # Set R: the number of simulations
-R = 200
+R = 100
 # The following list will collect the simulated dataframes of the
 # GIRF for each resampling
 sim_list_df = []
@@ -170,4 +170,4 @@ girf_complete = girf_complete.unstack()
 multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
 
 # Plot
-girfplot(girf_complete, shock)
+girfplot(df_mod, girf_complete, multi_index_col, shock)
