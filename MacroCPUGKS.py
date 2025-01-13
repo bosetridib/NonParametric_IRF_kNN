@@ -65,6 +65,7 @@ Y = DataReader(
     'fred',
     start='1987-04-01',  end='2019-06-01'
 )
+Y = Y.asfreq(pd.infer_freq(Y.index))
 
 from tsdisagg import disaggregate_series
 
