@@ -42,7 +42,7 @@ irf = results_var.ma_rep(40)
 # y_normalized = (y - y.min())/((y.max() - y.min()))
 # Standardization
 # y_normalized = (y - y.mean())/y.std()
-omega = df_mod.copy()
+omega = df.copy()
 # omega = omega.loc[omega['Unemployment_Rate'] >= 6]
 
 histoi = omega.index.date[-1]
@@ -51,10 +51,10 @@ histoi = omega.index.date[-1]
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
 
-robust_transformer.fit(df_mod)
+robust_transformer.fit(df)
 df_mod_scaled = pd.DataFrame(
-    robust_transformer.transform(df_mod),
-    columns=df_mod.columns, index=df_mod.index
+    robust_transformer.transform(df),
+    columns=df.columns, index=df.index
 )
 
 robust_transformer.fit(omega)

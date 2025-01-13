@@ -87,7 +87,7 @@ model_var = sm.tsa.VAR(df)
 
 results_var = model_var.fit(6)
 results_var.summary()
-np.linalg.cholesky(results_var.resid_corr).tolist()
+# np.linalg.cholesky(results_var.resid_corr).tolist()
 
 results_var.irf(40).plot(orth = True, impulse = 'cpu_index')
 plt.show()
