@@ -11,7 +11,7 @@ warnings.filterwarnings('ignore')
 # Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey
 # Bill 3 months market rate, represented by following variables of interest
 # y = df.copy()
-y = df_mod.copy()
+y = df.copy()
 # voi = [0,2,3,4,5,7]
 # y = df_mod.iloc[:,voi]
 
