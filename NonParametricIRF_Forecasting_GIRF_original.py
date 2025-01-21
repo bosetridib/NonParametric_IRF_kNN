@@ -12,6 +12,7 @@ warnings.filterwarnings('ignore')
 
 # Retrieve the standardized dataset
 df_std = (df - df.mean())/df.std()
+y = df.copy()
 
 # Forecasting
 # Horizon "in the middle"
@@ -29,17 +30,17 @@ dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index])
 dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimated (NOT forecasted) the period of interest T
-y_f = np.matmul(omega.T, weig).to_frame().T
+y_f = np.matmul(y.loc[omega.index].T, weig).to_frame().T
 
-u = omega - y_f.values.squeeze()
+u = y.loc[omega.index] - y_f.values.squeeze()
 u = u.multiply(weig, axis = 0)
 sigma_u = np.matmul((u - u.mean()).T , (u - u.mean()).multiply(weig, axis = 0)) / (1 - np.sum(weig**2))
 
-for i in range(1,H+1):
-    dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index[i:]])
+for h in range(1,H+1):
+    dist = np.array([euclidean(omega.loc[h], histoi) for h in omega.index[h:]])
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f.loc[i] = np.matmul(omega.iloc[i:].T, weig).values
+    y_f.loc[h] = np.matmul(omega.iloc[h:].T, weig).values
 
 # dataplot(y_f)
 
@@ -47,20 +48,20 @@ for i in range(1,H+1):
 B_mat = np.linalg.cholesky(sigma_u)
 # Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
 # The desired shock
-shock = 2
+shock = 1
 delta = B_mat[:,shock]
 
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 
-omega_star = pd.concat([omega, y_f_delta], axis=0)
+omega_star = pd.concat([y.loc[omega.index], y_f_delta], axis=0)
 
-for i in range(1,H+1):
-    dist = np.array([euclidean(omega_star.loc[i], y_f_delta.iloc[0]) for i in omega_star.index[i:]])
+for h in range(1,H+1):
+    dist = np.array([euclidean(omega_star.loc[h], y_f_delta.iloc[0]) for h in omega_star.index[h:]])
     dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f_delta.loc[i] = np.matmul(omega_star.iloc[i:].T, weig).values
+    y_f_delta.loc[h] = np.matmul(omega_star.iloc[h:].T, weig).values
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
