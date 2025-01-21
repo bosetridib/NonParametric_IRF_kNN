@@ -92,5 +92,5 @@ macro_data_mod = macro_data_mod.rename(columns={
 trend = 0
 
 df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 0 else pd.concat([epu, cpu, macro_data_mod], axis=1)
-
+df = df.dropna()
 # df.plot(subplots=True, layout=(2,4)); plt.show()
