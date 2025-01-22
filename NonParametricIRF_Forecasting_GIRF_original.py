@@ -27,7 +27,7 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 
 # Estimate y_T
 dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index])
-dist = (dist - dist.min())/(dist.max() - dist.min())
+# dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimated (NOT forecasted) the period of interest T
 y_f = np.matmul(y.loc[omega.index].T, weig).to_frame().T
@@ -46,7 +46,7 @@ sigma_u = np.matmul((u - u.mean()).T , (u - u.mean()).multiply(weig, axis = 0)) 
 
 for h in range(1,H+1):
     dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index[h:]])
-    dist = (dist - dist.min())/(dist.max() - dist.min())
+    # dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f.loc[h] = np.matmul(y.loc[omega.index[h:]].T, weig).values
 
@@ -68,7 +68,7 @@ omega_star_std = (omega_star - omega_star.mean())/omega_star.std()
 
 for h in range(1,H+1):
     dist = np.array([euclidean(omega_star_std.loc[i], omega_star_std.iloc[-1]) for i in omega_star_std.index[h:-1]])
-    dist = (dist - dist.min())/(dist.max() - dist.min())
+    # dist = (dist - dist.min())/(dist.max() - dist.min())
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     y_f_delta.loc[h] = np.matmul(omega_star.iloc[h:-1].T, weig).values
 # dataplot(y_f_delta)
