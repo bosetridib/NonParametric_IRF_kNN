@@ -10,9 +10,9 @@ warnings.filterwarnings('ignore')
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
 
-trend = 1
+trend = 0
 
-df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 0 else pd.concat([epu, cpu, macro_data_mod], axis=1)
+df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 1 else pd.concat([epu, cpu, macro_data_mod], axis=1)
 df = df.dropna()
 
 # Retrieve the standardized dataset
@@ -32,14 +32,13 @@ knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
 
 # Estimate y_T
 dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index])
-# dist = (dist - dist.min())/(dist.max() - dist.min())
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimated (NOT forecasted) the period of interest T
 y_f = np.matmul(y.loc[omega.index].T, weig).to_frame().T
 
 u = y.loc[omega.index] - y_f.values.squeeze()
-u = u.multiply(weig, axis = 0)
-sigma_u = np.matmul((u - u.mean()).T , (u - u.mean()).multiply(weig, axis = 0)) / (1 - np.sum(weig**2))
+u_mean = u.mul(weig, axis = 0).mean()
+sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
 # y.plot(
 #     subplots=True, layout=(2,4), color = 'blue',
@@ -50,11 +49,7 @@ sigma_u = np.matmul((u - u.mean()).T , (u - u.mean()).multiply(weig, axis = 0)) 
 # plt.show()
 
 for h in range(1,H+1):
-    dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index[h:]])
-    # dist = (dist - dist.min())/(dist.max() - dist.min())
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f.loc[h] = np.matmul(y.loc[omega.index[h:]].T, weig).values
-
+    y_f.loc[h] = np.matmul(y.loc[omega.index[h:]].T, weig[:-h]).values
 # dataplot(y_f)
 
 # Cholesky decomposition
@@ -67,15 +62,13 @@ delta = B_mat[:,shock]
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
+histoi_delta = (y_f_delta.loc[0] - df.mean())/df.std()
 
-omega_star = pd.concat([y.loc[omega.index], y_f_delta], axis=0)
-omega_star_std = (omega_star - omega_star.mean())/omega_star.std()
+dist = np.array([euclidean(omega.loc[i], histoi_delta) for i in omega.index])
+weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
 for h in range(1,H+1):
-    dist = np.array([euclidean(omega_star_std.loc[i], omega_star_std.iloc[-1]) for i in omega_star_std.index[h:-1]])
-    # dist = (dist - dist.min())/(dist.max() - dist.min())
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    y_f_delta.loc[h] = np.matmul(omega_star.iloc[h:-1].T, weig).values
+    y_f_delta.loc[h] = np.matmul(y.loc[omega.index[h:]].T, weig[:-h]).values
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
@@ -86,35 +79,6 @@ dataplot(np.exp(girf.cumsum()))
 R=100
 sim_list_df = []
 
-for r in range(0,R):
-    # For each resampled omega, we will store different
-    # dataframes of the IRFs
-    omega_resampled = omega.sample(n=T, replace=True).sort_index()
-    # Bootstrapped Forecast
-    dist = np.array([euclidean(omega_resampled.loc[i], histoi) for i in omega_resampled.index])
-    dist = (dist - dist.min())/(dist.max() - dist.min())
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    # Estimated (NOT forecasted) the period of interest T
-    y_f_star = np.matmul(omega_resampled.T, weig).to_frame().T
 
-    for i in range(1,H+1):
-        dist = np.array([euclidean(omega.loc[i], histoi) for i in omega.index[i:]])
-        dist = (dist - dist.min())/(dist.max() - dist.min())
-        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-        y_f_star.loc[i] = np.matmul(omega.iloc[i:].T, weig).values
-    # dataplot(y_f)
-    # Estimate y_T_delta
-    y_f_delta_star = pd.DataFrame(columns=y_f.columns)
-    y_f_delta_star.loc[0] = y_f_star.loc[0] + delta
-
-    omega_star = pd.concat([omega_resampled, y_f_delta_star], axis=0)
-
-    for i in range(1,H+1):
-        dist = np.array([euclidean(omega_star.loc[i], y_f_delta.iloc[0]) for i in omega_star.index[i:]])
-        dist = (dist - dist.min())/(dist.max() - dist.min())
-        weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-        y_f_delta_star.loc[i] = np.matmul(omega_star.iloc[i:].T, weig).values
-    # dataplot(y_f_delta)
-    # Store the GIRFs in the list
-    sim_list_df.append(y_f_delta_star - y_f_star)
+# for r in range(0,R):
 # End of loop, and now the sim_list_df has each of the resampled dataframes
