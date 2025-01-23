@@ -10,6 +10,11 @@ warnings.filterwarnings('ignore')
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
 
+trend = 1
+
+df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 0 else pd.concat([epu, cpu, macro_data_mod], axis=1)
+df = df.dropna()
+
 # Retrieve the standardized dataset
 df_std = (df - df.mean())/df.std()
 y = df.copy()
