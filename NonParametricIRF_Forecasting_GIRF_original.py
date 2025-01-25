@@ -77,24 +77,15 @@ dataplot(np.exp(girf.cumsum()))
 
 # Confidence Intervals
 R=100
-sim_list_df = []
-sim_list_df_resamp = []
-sim_list_df_girf = []
-
-# Collect the df required for bootstrapping
-for h in range(0,H+1):
-    sim_list_df.append(pd.concat([y.loc[omega.index[h:]],y_f.loc[:h]], axis=0))
+sim_girf = []
 
 # Perform simulations
 for r in range(0,R):
-    sim_list_df_resamp = [i.sample(n=T, replace=True) for i in sim_list_df]
-    sim_list_df_resamp = [(i - i.mean())/i.std() for i in sim_list_df_resamp]
-    dist = np.array([euclidean(omega.loc[i], histoi) for i in sim_list_df_resamp[0].index])
+    omega_resamp = omega.sample(n=T, replace=True).sort_index()
+    # Estimate y_T
+    dist = np.array([euclidean(omega_resamp.iloc[i], histoi) for i in range(0,omega_resamp.shape[0])])
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     # Estimated (NOT forecasted) the period of interest T
-    y_f = np.matmul(y.loc[omega.index].T, weig).to_frame().T
-    for h in range(1, H+1):
-        y_f.loc[h] = np.matmul(y.loc[omega.index[h:]].T, weig[:-h]).values
-
-# for r in range(0,R):
+    y_f_resamp = np.matmul(y.loc[omega_resamp.index].T, weig).to_frame().T
+    sim_girf.append(y_f_resamp)
 # End of loop, and now the sim_list_df has each of the resampled dataframes
