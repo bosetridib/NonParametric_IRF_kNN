@@ -86,6 +86,96 @@ for r in range(0,R):
     dist = np.array([euclidean(omega_resamp.iloc[i], histoi) for i in range(0,omega_resamp.shape[0])])
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     # Estimated (NOT forecasted) the period of interest T
-    y_f_resamp = np.matmul(y.loc[omega_resamp.index].T, weig).to_frame().T
-    sim_girf.append(y_f_resamp)
+    y_f_resamp = y_f.loc[0].to_frame().T
+    for h in range(1,H+1):
+        y_f_resamp.loc[h] = np.matmul(y.loc[omega_resamp.index[h:]].T, weig[:-h]).values
+    y_f_delta_resamp = y_f_delta.loc[0].to_frame().T
+    dist = np.array([euclidean(omega_resamp.iloc[i], histoi_delta) for i in range(0,omega_resamp.shape[0])])
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+    for h in range(1,H+1):
+        y_f_delta_resamp.loc[h] = np.matmul(y.loc[omega_resamp.index[h:]].T, weig[:-h]).values
+    sim_girf.append(y_f_delta_resamp - y_f_resamp)
 # End of loop, and now the sim_list_df has each of the resampled dataframes
+
+conf = 0.90
+# Define the multi-index dataframe for each horizon and CI for each column
+girf_complete = pd.DataFrame(
+    columns = omega.columns,
+    index = pd.MultiIndex(
+        levels=[range(0,H+1),['lower','GIRF','upper']],
+        codes=[[x//3 for x in range(0,(H+1)*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
+    )
+)
+
+for h in range(0,H+1):
+    for col in omega.columns:
+        girf_complete[col][h,'lower'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_girf], conf+(1-conf)/2)
+        girf_complete[col][h,'GIRF'] = girf[col][h]
+        girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_df[col][h] for each_df in sim_girf], (1-conf)/2)
+# girf_complete
+girf_complete = girf_complete.astype('float')
+girf_complete.iloc[:,[2,4,5,6]] = np.exp(girf_complete.iloc[:,[2,4,5,6]].cumsum())
+girf_complete.rename(columns={
+    'Growth_Industrial_Production':'Industrial_Production',
+    'Growth_PriceIndex_Producer':'PriceIndex_Producer',
+    'Growth_PriceIndex_PCE':'PriceIndex_PCE',
+    'Growth_Emission_CO2':'Emission_CO2'
+})
+
+girf_complete = girf_complete.unstack()
+multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
+
+# Plot
+girfplot(df, girf_complete, multi_index_col, shock)
+
+import seaborn as sns
+sns.set_theme(style="ticks")
+
+dots = sns.load_dataset("dots")
+
+# Define the palette as a list to specify exact values
+palette = sns.color_palette("rocket_r")
+girf_complete = pd.melt(girf_complete)
+girf_complete.columns.values[0]="Variables"
+girf_complete = pd.concat([girf_complete,pd.DataFrame([i for i in range(0,H+1)]*24, columns=["Horizon"])], axis=1)
+
+sns.relplot(
+    data=girf_complete,
+    x="Horizon", y="value",
+    hue="CI", col="Variables",
+    kind="line", palette=palette,
+    height=5, aspect=.75, facet_kws=dict(sharex=False, sharey=False),
+)
+plt.show()
+
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
+plt.figure(figsize = (10,20))
+gs1 = gridspec.GridSpec(2, 4)
+gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
+c=0
+for i in range(8):
+    ax1 = plt.subplot(gs1[i])
+    # plt.axis('on')
+    ax1.plot(girf_complete[multi_index_col[c][0]])
+    ax1.plot(girf_complete[multi_index_col[c][1]])
+    ax1.plot(girf_complete[multi_index_col[c][2]])
+    ax1.title.set_text(df.columns[shock] + ">" + df.columns[c])
+    c += 1
+plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(2,4)
+c = 0
+for i in range(2):
+    for j in range(4):
+        ax[i,j].plot(girf_complete[multi_index_col[c][0]])
+        ax[i,j].plot(girf_complete[multi_index_col[c][1]])
+        ax[i,j].plot(girf_complete[multi_index_col[c][2]])
+        ax[i,j].grid(True)
+        ax[i,j].axhline(y=0, color = 'k')
+        ax[i,j].title.set_text(df.columns[shock] + ">" + df.columns[c])
+        c += 1
+plt.tight_layout()
+fig.show()
