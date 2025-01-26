@@ -137,10 +137,22 @@ c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
+    ax1.plot(girf_complete[multi_index_col[c][1]])
+    c += 1
+plt.tight_layout()
+plt.show()
+
+c=0
+plt.figure(figsize = (10,20))
+gs1 = gridspec.GridSpec(2, 4)
+gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
+c=0
+for i in range(8):
+    ax1 = plt.subplot(gs1[i])
+    # plt.axis('on')
     ax1.plot(girf_complete[multi_index_col[c][0]])
     ax1.plot(girf_complete[multi_index_col[c][1]])
     ax1.plot(girf_complete[multi_index_col[c][2]])
-    ax1.axhline(y=0, color = 'k')
     ax1.title.set_text(df.columns[shock] + ">" + df.columns[c])
     c += 1
 plt.tight_layout()
