@@ -76,7 +76,7 @@ dataplot(girf)
 dataplot(np.exp(girf.cumsum()))
 
 # Confidence Intervals
-R=100
+R=1000
 sim_girf = []
 
 # Perform simulations
@@ -115,7 +115,7 @@ for h in range(0,H+1):
 # girf_complete
 girf_complete = girf_complete.astype('float')
 girf_complete.iloc[:,[2,4,5,6]] = np.exp(girf_complete.iloc[:,[2,4,5,6]].cumsum())
-girf_complete.rename(columns={
+girf_complete = girf_complete.rename(columns={
     'Growth_Industrial_Production':'Industrial_Production',
     'Growth_PriceIndex_Producer':'PriceIndex_Producer',
     'Growth_PriceIndex_PCE':'PriceIndex_PCE',
@@ -124,29 +124,8 @@ girf_complete.rename(columns={
 
 girf_complete = girf_complete.unstack()
 multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
-
 # Plot
 girfplot(df, girf_complete, multi_index_col, shock)
-
-import seaborn as sns
-sns.set_theme(style="ticks")
-
-dots = sns.load_dataset("dots")
-
-# Define the palette as a list to specify exact values
-palette = sns.color_palette("rocket_r")
-girf_complete = pd.melt(girf_complete)
-girf_complete.columns.values[0]="Variables"
-girf_complete = pd.concat([girf_complete,pd.DataFrame([i for i in range(0,H+1)]*24, columns=["Horizon"])], axis=1)
-
-sns.relplot(
-    data=girf_complete,
-    x="Horizon", y="value",
-    hue="CI", col="Variables",
-    kind="line", palette=palette,
-    height=5, aspect=.75, facet_kws=dict(sharex=False, sharey=False),
-)
-plt.show()
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -161,21 +140,8 @@ for i in range(8):
     ax1.plot(girf_complete[multi_index_col[c][0]])
     ax1.plot(girf_complete[multi_index_col[c][1]])
     ax1.plot(girf_complete[multi_index_col[c][2]])
+    ax1.axhline(y=0, color = 'k')
     ax1.title.set_text(df.columns[shock] + ">" + df.columns[c])
     c += 1
 plt.tight_layout()
 plt.show()
-
-fig, ax = plt.subplots(2,4)
-c = 0
-for i in range(2):
-    for j in range(4):
-        ax[i,j].plot(girf_complete[multi_index_col[c][0]])
-        ax[i,j].plot(girf_complete[multi_index_col[c][1]])
-        ax[i,j].plot(girf_complete[multi_index_col[c][2]])
-        ax[i,j].grid(True)
-        ax[i,j].axhline(y=0, color = 'k')
-        ax[i,j].title.set_text(df.columns[shock] + ">" + df.columns[c])
-        c += 1
-plt.tight_layout()
-fig.show()
