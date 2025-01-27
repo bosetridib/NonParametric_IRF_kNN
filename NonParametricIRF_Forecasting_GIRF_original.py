@@ -16,8 +16,9 @@ df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 1 else pd.concat([epu
 df = df.dropna()
 
 # Retrieve the standardized dataset
+
 df_std = (df - df.mean())/df.std()
-df_std = sm.tsa.tsatools.lagmat(df_std, maxlag=3, use_pandas=True)
+df_std = sm.tsa.tsatools.lagmat(df_std, maxlag=6, use_pandas=True)
 y = df.copy()
 
 # Forecasting
@@ -64,7 +65,7 @@ delta = B_mat[:,shock]
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 histoi_delta = (y_f_delta.loc[0] - df.mean())/df.std()
-histoi_delta = pd.concat([histoi_delta, df_std.iloc[-1]], axis=0)[:-8]
+histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-8]
 
 dist = np.array([euclidean(omega.loc[i], histoi_delta) for i in omega.index])
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
