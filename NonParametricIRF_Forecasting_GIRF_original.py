@@ -10,23 +10,21 @@ warnings.filterwarnings('ignore')
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
 
-trend = 0
-
-df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 1 else pd.concat([epu, cpu, macro_data_mod], axis=1)
+df = pd.concat([epu, cpu, macro_data_mod], axis=1)
 df = df.dropna()
 
 # Retrieve the standardized dataset
 
 df_std = (df - df.mean())/df.std()
 # df_std = sm.tsa.tsatools.lagmat(df_std, maxlag=6, use_pandas=True)
-y = df.copy()
+y = pd.concat([epu, cpu, macro_data], axis=1)
 
 # Forecasting
 # Horizon "in the middle"
 H = 40
+histoi = df_std.iloc[-1]
 omega = df_std.iloc[:-(H+1)]
 # omega = df_std.copy()
-histoi = df_std.iloc[-1]
 
 T = omega.shape[0]
 
@@ -64,7 +62,7 @@ delta = B_mat[:,shock]
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
-histoi_delta = (y_f_delta.loc[0] - df.mean())/df.std()
+histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
 histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-8]
 
 knn.fit(omega)
@@ -78,7 +76,6 @@ for h in range(1,H+1):
 
 girf = y_f_delta - y_f
 dataplot(girf)
-dataplot(np.exp(girf.cumsum()))
 
 # Confidence Intervals
 R=1000
