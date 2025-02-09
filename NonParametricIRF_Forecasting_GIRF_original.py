@@ -23,6 +23,8 @@ y = pd.concat([epu, cpu, macro_data], axis=1)
 # Horizon "in the middle"
 H = 40
 histoi = df_std.iloc[-1]
+# histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
+# histoi = df_std.iloc[-(H+1):].mean()
 omega = df_std.iloc[:-(H+1)]
 # omega = df_std.copy()
 
@@ -63,6 +65,14 @@ delta = B_mat[:,shock]
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
+
+# df_star = pd.concat([y.iloc[:-1], y_f_delta])
+# df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
+#     'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
+# ]]).diff().dropna()
+# df_star = (df_star - df_star.mean())/df_star.std()
+# histoi_delta = df_star.iloc[-1]
+
 histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
 knn.fit(omega)
@@ -93,8 +103,8 @@ for r in range(0,R):
     y_f_resamp = np.matmul(y.loc[omega_resamp.iloc[ind].index].T, weig).to_frame().T
     for h in range(1,H+1):
         y_f_resamp.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
-    y_f_delta_resamp = pd.DataFrame(columns=y_f.columns)
-    y_f_delta_resamp.loc[0] = y_f.loc[0] + delta
+    y_f_delta_resamp = pd.DataFrame(columns=y_f_resamp.columns)
+    y_f_delta_resamp.loc[0] = y_f_resamp.loc[0] + delta
     histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
     histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
     knn.fit(omega_resamp)
@@ -134,7 +144,7 @@ girfplot(df, girf_complete, multi_index_col, shock)
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-plt.figure(figsize = (10,20))
+plt.figure(figsize = (10,25))
 gs1 = gridspec.GridSpec(2, 4)
 gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
 c=0
@@ -143,12 +153,13 @@ for i in range(8):
     # plt.axis('on')
     ax1.plot(girf_complete[multi_index_col[c][1]])
     ax1.set_title(y.columns[c])
+    ax1.tick_params(axis="y",direction="in", pad=-20)
     c += 1
 plt.tight_layout()
 plt.show()
 
 c=0
-plt.figure(figsize = (10,20))
+plt.figure(figsize = (10,25))
 gs1 = gridspec.GridSpec(2, 4)
 gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
 c=0
@@ -159,6 +170,7 @@ for i in range(8):
     ax1.plot(girf_complete[multi_index_col[c][1]])
     ax1.plot(girf_complete[multi_index_col[c][2]])
     ax1.title.set_text(df.columns[shock] + ">" + df.columns[c])
+    ax1.tick_params(axis="y",direction="in", pad=-20)
     c += 1
 plt.tight_layout()
 plt.show()
