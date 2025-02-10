@@ -22,15 +22,24 @@ y = pd.concat([epu, cpu, macro_data], axis=1)
 # Forecasting
 # Horizon "in the middle"
 H = 40
-histoi = df_std.iloc[-1]
-# histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
-# histoi = df_std.iloc[-(H+1):].mean()
-omega = df_std.iloc[:-(H+1)]
-# omega = df_std.copy()
+
+def histoiOmega(macro_condition):
+    
+    if macro_condition == 'general':
+        histoi = df_std.iloc[-(H+1):].mean()
+        omega = df_std.iloc[:-(H+1)]
+    
+    if macro_condition == 'recessionary':
+        histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
+        omega = pd.concat([df_std.loc[:'2008-10-01'], df_std.loc['2009-11-01':]]).iloc[:-(H+1)]
+    
+    return (histoi, omega)
+
+(histoi, omega) = histoiOmega('general')
 
 T = omega.shape[0]
 
-knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=50, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -64,14 +73,14 @@ delta = B_mat[:,shock]
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
-histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
+# histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
 
-# df_star = pd.concat([y.iloc[:-1], y_f_delta])
-# df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
-#     'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
-# ]]).diff().dropna()
-# df_star = (df_star - df_star.mean())/df_star.std()
-# histoi_delta = df_star.iloc[-1]
+df_star = pd.concat([y.iloc[-2:-1], y_f_delta])
+df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
+    'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
+]]).diff().dropna()
+df_star = (df_star - y.mean())/y.std()
+histoi_delta = df_star.iloc[-1]
 
 histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
