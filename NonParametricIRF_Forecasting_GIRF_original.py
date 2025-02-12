@@ -11,7 +11,6 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 
 df = pd.concat([epu, cpu, macro_data_mod], axis=1)
-df = df.dropna()
 
 # Retrieve the standardized dataset
 
@@ -24,18 +23,27 @@ y = pd.concat([epu, cpu, macro_data], axis=1)
 H = 40
 
 def histoiOmega(macro_condition):
-    
-    if macro_condition == 'general':
+    if macro_condition == "general":
         histoi = df_std.iloc[-(H+1):].mean()
-        omega = df_std.iloc[:-(H+1)]
-    
-    if macro_condition == 'recessionary':
+        omega = df_std.iloc[:-(H+1)]    
+    elif macro_condition == "great_recession":
         histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
         omega = pd.concat([df_std.loc[:'2008-10-01'], df_std.loc['2009-11-01':]]).iloc[:-(H+1)]
-    
+    elif macro_condition == "recessionary":
+        histoi = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index].mean()
+        omega = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index].iloc[:-(H+1)]
+    elif macro_condition == 'booming':
+        histoi = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index].mean()
+        omega = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index].iloc[:-(H+1)]
+    else:
+        print("macro_condition doesn't exist!")
     return (histoi, omega)
 
-(histoi, omega) = histoiOmega('general')
+(histoi, omega) = histoiOmega("booming")
+
+df = df.dropna()
+df_std = df_std.dropna()
+omega = omega.dropna()
 
 T = omega.shape[0]
 
