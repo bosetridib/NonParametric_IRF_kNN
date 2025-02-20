@@ -25,25 +25,33 @@ H = 40
 def histoiOmega(macro_condition):
     if macro_condition == "general":
         histoi = df_std.iloc[-(H+1):].mean()
-        omega = df_std.iloc[:-(H+1)]    
+        omega = df_std.iloc[:-(H+1)]
     elif macro_condition == "great_recession":
         histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
-        omega = pd.concat([df_std.loc[:'2008-10-01'], df_std.loc['2009-11-01':]]).iloc[:-(H+1)]
+        omega = pd.concat([df_std.loc[:'2008-10-01'], df_std.loc['2009-11-01':]])
     elif macro_condition == "recessionary":
         histoi = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index].mean()
-        omega = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index].iloc[:-(H+1)]
-    elif macro_condition == 'booming':
+        omega = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index]
+    elif macro_condition == "booming":
         histoi = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index].mean()
-        omega = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index].iloc[:-(H+1)]
+        omega = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
+    elif macro_condition == "LowCPU":
+        histoi = df_std.loc[y.loc[y['cpu_index'] < 100].index].mean()
+        omega = df_std.loc[y.loc[y['cpu_index'] < 100].index]
+    elif macro_condition == "HighCPU":
+        histoi = df_std.loc[y.loc[y['cpu_index'] >= 100].index].mean()
+        omega = df_std.loc[y.loc[y['cpu_index'] >= 100].index]
     else:
-        print("macro_condition doesn't exist!")
+        histoi = df_std.iloc[-1]
+        omega = df_std.iloc[:-(H+1)]
     return (histoi, omega)
 
-(histoi, omega) = histoiOmega("booming")
+(histoi, omega) = histoiOmega("HighCPU")
 
 df = df.dropna()
 df_std = df_std.dropna()
 omega = omega.dropna()
+omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 
 T = omega.shape[0]
 
