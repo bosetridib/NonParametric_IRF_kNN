@@ -109,7 +109,7 @@ for h in range(1,H+1):
     y_f_delta.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f_delta)
 
-girf = y_f_delta - y_f
+girf = (y_f_delta - y_f)*(50/delta[shock])
 dataplot(girf)
 
 # Confidence Intervals
@@ -139,7 +139,7 @@ for r in range(0,R):
     for h in range(1,H+1):
         y_f_delta_resamp.loc[h] = np.matmul(y.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
     # dataplot(y_f_delta)
-    sim_girf.append(y_f_delta_resamp - y_f_resamp)
+    sim_girf.append((y_f_delta_resamp - y_f_resamp)*(50/delta[shock]))
     print('loop: '+str(r))
 # End of loop, and now the sim_list_df has each of the resampled dataframes
 
