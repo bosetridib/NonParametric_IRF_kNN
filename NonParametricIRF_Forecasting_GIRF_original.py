@@ -41,6 +41,12 @@ def histoiOmega(macro_condition):
     elif macro_condition == "HighCPU":
         histoi = df_std.loc[y.loc[y['cpu_index'] >= 100].index].mean()
         omega = df_std.loc[y.loc[y['cpu_index'] >= 100].index]
+    elif macro_condition == "LowEPU":
+        histoi = df_std.loc[y.loc[y['epu_index'] < 100].index].mean()
+        omega = df_std.loc[y.loc[y['epu_index'] < 100].index]
+    elif macro_condition == "HighEPU":
+        histoi = df_std.loc[y.loc[y['epu_index'] >= 100].index].mean()
+        omega = df_std.loc[y.loc[y['epu_index'] >= 100].index]
     else:
         histoi = df_std.iloc[-1]
         omega = df_std.iloc[:-(H+1)]
