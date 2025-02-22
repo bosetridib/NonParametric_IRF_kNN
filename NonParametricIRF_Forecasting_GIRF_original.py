@@ -35,6 +35,9 @@ def histoiOmega(macro_condition):
     elif macro_condition == "booming":
         histoi = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index].mean()
         omega = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
+    elif macro_condition == "inflationary":
+        histoi = df_std.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index].mean()
+        omega = df_std.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
     elif macro_condition == "LowCPU":
         histoi = df_std.loc[y.loc[y['cpu_index'] < 100].index].mean()
         omega = df_std.loc[y.loc[y['cpu_index'] < 100].index]
@@ -50,9 +53,10 @@ def histoiOmega(macro_condition):
     else:
         histoi = df_std.iloc[-1]
         omega = df_std.iloc[:-(H+1)]
+        print("Incorrect term included.")
     return (histoi, omega)
 
-(histoi, omega) = histoiOmega("HighCPU")
+(histoi, omega) = histoiOmega("general")
 
 df = df.dropna()
 df_std = df_std.dropna()
@@ -115,8 +119,8 @@ for h in range(1,H+1):
     y_f_delta.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f_delta)
 
-girf = (y_f_delta - y_f)*(50/delta[shock])
-dataplot(girf)
+girf = y_f_delta - y_f
+dataplot(girf*(50/delta[shock]))
 
 # Confidence Intervals
 R=50
@@ -145,7 +149,7 @@ for r in range(0,R):
     for h in range(1,H+1):
         y_f_delta_resamp.loc[h] = np.matmul(y.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
     # dataplot(y_f_delta)
-    sim_girf.append((y_f_delta_resamp - y_f_resamp)*(50/delta[shock]))
+    sim_girf.append(y_f_delta_resamp - y_f_resamp)
     print('loop: '+str(r))
 # End of loop, and now the sim_list_df has each of the resampled dataframes
 
@@ -170,8 +174,8 @@ girf_complete = girf_complete.astype('float')
 girf_complete = girf_complete.unstack()
 multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
 # Plot
-girfplot(df, girf_complete, multi_index_col, shock)
-
+girfplot(df, girf_complete*(50/delta[shock]), multi_index_col, shock)
+#
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
