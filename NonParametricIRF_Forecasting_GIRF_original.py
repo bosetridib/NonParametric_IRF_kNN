@@ -53,10 +53,10 @@ def histoiOmega(macro_condition):
     else:
         histoi = df_std.iloc[-1]
         omega = df_std.iloc[:-(H+1)]
-        print("Incorrect term included.")
+        print("Default history and omega.")
     return (histoi, omega)
 
-(histoi, omega) = histoiOmega("general")
+(histoi, omega) = histoiOmega("inflationary")
 
 df = df.dropna()
 df_std = df_std.dropna()
@@ -65,7 +65,7 @@ omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 
 T = omega.shape[0]
 
-knn = NearestNeighbors(n_neighbors=50, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=T-H, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -101,7 +101,7 @@ y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 # histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
 
-df_star = pd.concat([y.iloc[-2:-1], y_f_delta])
+df_star = pd.concat([y.loc[omega.iloc[-3:-1].index], y_f_delta])
 df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
     'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
 ]]).diff().dropna()
