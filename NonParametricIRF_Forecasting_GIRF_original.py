@@ -30,26 +30,26 @@ def histoiOmega(macro_condition):
         histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
         omega = pd.concat([df_std.loc[:'2008-10-01'], df_std.loc['2009-11-01':]])
     elif macro_condition == "recessionary":
-        histoi = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index].mean()
         omega = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index]
+        histoi = omega.iloc[-1]
     elif macro_condition == "booming":
-        histoi = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index].mean()
         omega = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
+        histoi = omega.iloc[-1]
     elif macro_condition == "inflationary":
-        histoi = df_std.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index].mean()
         omega = df_std.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
+        histoi = omega.iloc[-1]
     elif macro_condition == "LowCPU":
-        histoi = df_std.loc[y.loc[y['cpu_index'] < 100].index].mean()
         omega = df_std.loc[y.loc[y['cpu_index'] < 100].index]
+        histoi = omega.iloc[-1]
     elif macro_condition == "HighCPU":
-        histoi = df_std.loc[y.loc[y['cpu_index'] >= 100].index].mean()
         omega = df_std.loc[y.loc[y['cpu_index'] >= 100].index]
+        histoi = omega.iloc[-1]
     elif macro_condition == "LowEPU":
-        histoi = df_std.loc[y.loc[y['epu_index'] < 100].index].mean()
         omega = df_std.loc[y.loc[y['epu_index'] < 100].index]
+        histoi = omega.iloc[-1]
     elif macro_condition == "HighEPU":
-        histoi = df_std.loc[y.loc[y['epu_index'] >= 100].index].mean()
         omega = df_std.loc[y.loc[y['epu_index'] >= 100].index]
+        histoi = omega.iloc[-1]
     else:
         histoi = df_std.iloc[-1]
         omega = df_std.iloc[:-(H+1)]
@@ -137,10 +137,18 @@ for r in range(0,R):
     # Estimate y_T
     y_f_resamp = np.matmul(y.loc[omega_resamp.iloc[ind].index].T, weig).to_frame().T
     for h in range(1,H+1):
-        y_f_resamp.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+        y_f_resamp.loc[h] = np.matmul(y.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+    
     y_f_delta_resamp = pd.DataFrame(columns=y_f_resamp.columns)
     y_f_delta_resamp.loc[0] = y_f_resamp.loc[0] + delta
-    histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
+
+    df_star = pd.concat([y.loc[omega_resamp.iloc[-3:-1].index], y_f_delta_resamp])
+    df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
+        'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
+    ]]).diff().dropna()
+    df_star = (df_star - y.mean())/y.std()
+    histoi_delta = df_star.iloc[-1]
+    # histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
     histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
     knn.fit(omega_resamp)
     dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
@@ -201,9 +209,9 @@ c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][0]])
+    ax1.plot(girf_complete[multi_index_col[c][0]], color = 'black')
     ax1.plot(girf_complete[multi_index_col[c][1]])
-    ax1.plot(girf_complete[multi_index_col[c][2]])
+    ax1.plot(girf_complete[multi_index_col[c][2]], color = 'black')
     ax1.title.set_text(df.columns[shock] + ">" + df.columns[c])
     ax1.tick_params(axis="y",direction="in", pad=-20)
     c += 1

@@ -22,9 +22,9 @@ def girfplot(df_mod, girf_complete, multi_index_col, shock):
     c = 0
     for i in range(2):
         for j in range(4):
-            ax[i,j].plot(girf_complete[multi_index_col[c][0]])
+            ax[i,j].plot(girf_complete[multi_index_col[c][0]], color = 'black')
             ax[i,j].plot(girf_complete[multi_index_col[c][1]])
-            ax[i,j].plot(girf_complete[multi_index_col[c][2]])
+            ax[i,j].plot(girf_complete[multi_index_col[c][2]], color = 'black')
             ax[i,j].grid(True)
             ax[i,j].axhline(y=0, color = 'k')
             ax[i,j].title.set_text(df_mod.columns[shock] + ">" + df_mod.columns[c])
