@@ -9,6 +9,7 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
+interest = "HighEPU"
 
 df = pd.concat([epu, cpu, macro_data_mod], axis=1)
 
@@ -56,7 +57,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-(histoi, omega) = histoiOmega("general")
+(histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
 df_std = df_std.dropna()
@@ -194,13 +195,14 @@ c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][1]])
+    ax1.plot(girf_complete[multi_index_col[c][1]]*(50/delta[shock]))
     ax1.set_title(y.columns[c])
     ax1.tick_params(axis="y",direction="in", pad=-20)
     c += 1
 plt.tight_layout()
 plt.show()
 
+girf_complete = girf_complete*(50/delta[shock])
 c=0
 plt.figure(figsize = (10,25))
 gs1 = gridspec.GridSpec(2, 4)
