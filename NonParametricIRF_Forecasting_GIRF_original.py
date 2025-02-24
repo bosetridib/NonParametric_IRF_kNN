@@ -15,7 +15,7 @@ df = pd.concat([epu, cpu, macro_data_mod], axis=1)
 # Retrieve the standardized dataset
 
 df_std = (df - df.mean())/df.std()
-# p=2; df_std = sm.tsa.tsatools.lagmat(df_std, maxlag=p, use_pandas=True).iloc[p:]
+# p=1; df_std = sm.tsa.tsatools.lagmat(df_std, maxlag=p, use_pandas=True).iloc[p:]
 y = pd.concat([epu, cpu, macro_data], axis=1)
 
 # Forecasting
@@ -56,7 +56,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-(histoi, omega) = histoiOmega("inflationary")
+(histoi, omega) = histoiOmega("general")
 
 df = df.dropna()
 df_std = df_std.dropna()
