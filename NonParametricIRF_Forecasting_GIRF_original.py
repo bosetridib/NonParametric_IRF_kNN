@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
-interest = "HighEPU"
+interest = "general"
 
 df = pd.concat([epu, cpu, macro_data_mod], axis=1)
 
@@ -124,7 +124,7 @@ girf = y_f_delta - y_f
 dataplot(girf*(50/delta[shock]))
 
 # Confidence Intervals
-R=50
+R=500
 sim_girf = []
 
 # Perform simulations
@@ -190,7 +190,8 @@ import matplotlib.gridspec as gridspec
 
 plt.figure(figsize = (10,25))
 gs1 = gridspec.GridSpec(2, 4)
-gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
+gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes.
+
 c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
