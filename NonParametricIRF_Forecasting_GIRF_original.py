@@ -12,11 +12,10 @@ warnings.filterwarnings('ignore')
 interest = "general"
 
 df = pd.concat([epu, cpu, macro_data_mod], axis=1)
+# p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
 
 # Retrieve the standardized dataset
 
-df_std = (df - df.mean())/df.std()
-# p=1; df_std = sm.tsa.tsatools.lagmat(df_std, maxlag=p, use_pandas=True).iloc[p:]
 y = pd.concat([epu, cpu, macro_data], axis=1)
 
 # Forecasting
@@ -25,45 +24,49 @@ H = 40
 
 def histoiOmega(macro_condition):
     if macro_condition == "general":
-        histoi = df_std.iloc[-(H+1):].mean()
-        omega = df_std.iloc[:-(H+1)]
+        histoi = df.iloc[-(H+1):].mean()
+        omega = df.iloc[:-(H+1)]
     elif macro_condition == "great_recession":
-        histoi = df_std.loc['2008-11-01':'2009-10-01'].mean()
-        omega = pd.concat([df_std.loc[:'2008-10-01'], df_std.loc['2009-11-01':]])
+        histoi = df.loc['2008-11-01':'2009-10-01'].mean()
+        omega = pd.concat([df.loc[:'2008-10-01'], df.loc['2009-11-01':]])
     elif macro_condition == "recessionary":
-        omega = df_std.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index]
+        omega = df.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "booming":
-        omega = df_std.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
+        omega = df.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "inflationary":
-        omega = df_std.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
+        omega = df.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "LowCPU":
-        omega = df_std.loc[y.loc[y['cpu_index'] < 100].index]
+        omega = df.loc[y.loc[y['cpu_index'] < 100].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "HighCPU":
-        omega = df_std.loc[y.loc[y['cpu_index'] >= 100].index]
+        omega = df.loc[y.loc[y['cpu_index'] >= 100].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "LowEPU":
-        omega = df_std.loc[y.loc[y['epu_index'] < 100].index]
+        omega = df.loc[y.loc[y['epu_index'] < 100].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "HighEPU":
-        omega = df_std.loc[y.loc[y['epu_index'] >= 100].index]
+        omega = df.loc[y.loc[y['epu_index'] >= 100].index]
         histoi = omega.iloc[-1]
     else:
-        histoi = df_std.iloc[-1]
-        omega = df_std.iloc[:-(H+1)]
+        histoi = df.iloc[-1]
+        omega = df.iloc[:-(H+1)]
         print("Default history and omega.")
     return (histoi, omega)
 
 (histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
+df_std = (df - df.mean())/df.std()
 df_std = df_std.dropna()
 omega = omega.dropna()
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
-
+omega_mean = omega.mean()
+omega_std = omega.std()
+omega = (omega - omega_mean)/omega_std
+histoi = (histoi - omega_mean)/omega_std
 T = omega.shape[0]
 
 knn = NearestNeighbors(n_neighbors=T-H, metric='euclidean')
@@ -75,7 +78,7 @@ weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(y.loc[omega.iloc[ind].index].T, weig).to_frame().T
 
 u = y.loc[omega.iloc[ind].index] - y_f.values.squeeze()
-u_mean = u.mul(weig, axis = 0).mean()
+u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
 # y_f.plot(
@@ -102,11 +105,16 @@ y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 # histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
 
-df_star = pd.concat([y.loc[omega.iloc[-3:-1].index], y_f_delta])
+df_star = pd.concat([y.loc[omega.iloc[-6:].index], y_f_delta])
+# df_star = pd.concat([y_f.loc[0].to_frame().T, y_f_delta])
 df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
     'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
-]]).diff().dropna()
+]]).diff()
+df_star = (df_star - omega_mean.values)/omega_std.values
 df_star = (df_star - y.mean())/y.std()
+
+df_star = (df_star - df.mean().values)/df.std().values
+
 histoi_delta = df_star.iloc[-1]
 
 histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
