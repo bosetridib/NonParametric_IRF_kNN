@@ -106,13 +106,13 @@ y_f_delta.loc[0] = y_f.loc[0] + delta
 # histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
 
 df_star = pd.concat([y.loc[omega.iloc[-6:].index], y_f_delta])
-# df_star = pd.concat([y_f.loc[0].to_frame().T, y_f_delta])
+# df_star = pd.concat([y.iloc[-6:-1], y_f_delta])
 df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
     'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
 ]]).diff()
+
 df_star = (df_star - omega_mean.values)/omega_std.values
 df_star = (df_star - y.mean())/y.std()
-
 df_star = (df_star - df.mean().values)/df.std().values
 
 histoi_delta = df_star.iloc[-1]
