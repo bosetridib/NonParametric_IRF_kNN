@@ -9,7 +9,6 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
-interest = "general"
 
 df = pd.concat([epu, cpu, macro_data_mod], axis=1)
 # p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
@@ -56,11 +55,10 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
+interest = "general."
 (histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
-df_std = (df - df.mean())/df.std()
-df_std = df_std.dropna()
 omega = omega.dropna()
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_mean = omega.mean()
@@ -76,48 +74,36 @@ dist = dist[0,:]; ind = ind[0,:]
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimate y_T
 y_f = np.matmul(y.loc[omega.iloc[ind].index].T, weig).to_frame().T
+df_omega = np.matmul(df.loc[omega.iloc[ind].index].T, weig).to_frame().T
 
-u = y.loc[omega.iloc[ind].index] - y_f.values.squeeze()
+# Define the shock
+shock = 1
+
+u_y = y.loc[omega.iloc[ind].index] - y_f.iloc[0].values.squeeze()
+u_mean = u_y.mul(weig, axis = 0)
+sigma_u = np.matmul((u_y - u_mean).T, (u_y - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
+delta_y = np.linalg.cholesky(sigma_u)[:,shock]
+
+u = df.loc[omega.iloc[ind].index] - df_omega.values.squeeze()
 u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
-# y_f.plot(
-#     subplots=True, layout=(2,4), color = 'blue',
-#     ax=y_f_delta.plot(
-#         subplots=True, layout=(2,4), color = 'red'
-#     )
-# )
-# plt.show()
+# Cholesky decomposition
+# B_mat = np.linalg.cholesky(sigma_u)
+# The desired shock
+delta = np.linalg.cholesky(sigma_u)[:,shock]
 
 for h in range(1,H+1):
     y_f.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f)
 
-# Cholesky decomposition
-B_mat = np.linalg.cholesky(sigma_u)
-# Note that sigma_u = residual_cov*((T-1)/(T-Kp-1))
-# The desired shock
-shock = 1
-delta = B_mat[:,shock]
-
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
-y_f_delta.loc[0] = y_f.loc[0] + delta
-# histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
+y_f_delta.loc[0] = y_f.loc[0] + delta_y
 
-df_star = pd.concat([y.loc[omega.iloc[-6:].index], y_f_delta])
-# df_star = pd.concat([y.iloc[-6:-1], y_f_delta])
-df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
-    'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
-]]).diff()
+histoi_delta = (df_omega.iloc[0] + delta - omega_mean.values)/omega_std.values
 
-df_star = (df_star - omega_mean.values)/omega_std.values
-df_star = (df_star - y.mean())/y.std()
-df_star = (df_star - df.mean().values)/df.std().values
-
-histoi_delta = df_star.iloc[-1]
-
-histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
+# histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
@@ -130,6 +116,15 @@ for h in range(1,H+1):
 
 girf = y_f_delta - y_f
 dataplot(girf*(50/delta[shock]))
+# dataplot(girf)
+
+# y_f.plot(
+#     subplots=True, layout=(2,4), color = 'blue',
+#     ax=y_f_delta.plot(
+#         subplots=True, layout=(2,4), color = 'red'
+#     )
+# )
+# plt.show()
 
 # Confidence Intervals
 R=500
