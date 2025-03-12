@@ -53,33 +53,20 @@ class transformation_logdiff:
     def __init__(self, dataframe):
         self.init_val = dataframe.iloc[0]
         self.dataframe = dataframe
-    
     def logdiff(self):
         self.data_transformed = np.log(self.dataframe).diff()
         return(self.data_transformed.dropna())
-    
     # Only meant to retrieve the original dataset
     def inv_logdiff(self):
         inv_transformation = np.exp(self.data_transformed.cumsum())*self.init_val
         inv_transformation.iloc[0] = self.init_val
         return(inv_transformation)
-    
     # Meant for GIRF inverse transform
     def inv_logdiff_girf(self, X):
         inv_transformation = np.exp(X.cumsum())*self.init_val
         return(inv_transformation)
     # Class ends
-
-# indpro = macro_data.iloc[:,[0,2]]
-# x = indpro.iloc[50:90]
-# indpromod = transformation_logdiff(indpro)
-# indpromod.logdiff()
-# indpromod.inv_logdiff() - indpro
-
-# xmod = transformation_logdiff(x)
-# xmod.logdiff()
-# np.sum(xmod.inv_logdiff_girf(xmod.logdiff()) - x)
-
+# Send to the GIRF file
 
 ############### Rough Work ###############
 

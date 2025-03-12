@@ -77,20 +77,6 @@ Emission_CO2 = disaggregate_series(
 # optimizer_kwargs={"method": "L-BFGS-B"}
 # Emission_CO2.plot(); plt.show()
 macro_data.insert(4, 'Emission_CO2', Emission_CO2/10)
-macro_data_mod = macro_data.copy()
-macro_data_mod[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(macro_data_mod[[
-    'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
-]]).diff()
 
-macro_data_mod = macro_data_mod.rename(columns={
-    'Industrial_Production':'Growth_Industrial_Production',
-    'PriceIndex_Producer':'Growth_PriceIndex_Producer',
-    'PriceIndex_PCE':'Growth_PriceIndex_PCE',
-    'Emission_CO2':'Growth_Emission_CO2'
-})
-
-trend = 0
-
-df = pd.concat([epu, cpu, macro_data], axis=1) if trend == 0 else pd.concat([epu, cpu, macro_data_mod], axis=1)
-df = df.dropna()
-# df.plot(subplots=True, layout=(2,4)); plt.show()
+# Define the trend variables
+trend = macro_data.columns[[0,2,3,4]]

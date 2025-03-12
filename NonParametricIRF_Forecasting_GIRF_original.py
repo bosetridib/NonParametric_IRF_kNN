@@ -10,12 +10,16 @@ warnings.filterwarnings('ignore')
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
 
-df = pd.concat([epu, cpu, macro_data_mod], axis=1)
+y = pd.concat([epu, cpu, macro_data], axis=1)
+
+df = y.copy()
+
+mod = transformation_logdiff(macro_data[trend])
+
+df[trend] = mod.logdiff()
 # p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
 
 # Retrieve the standardized dataset
-
-y = pd.concat([epu, cpu, macro_data], axis=1)
 
 # Forecasting
 # Horizon "in the middle"
