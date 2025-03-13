@@ -59,7 +59,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "general"
+interest = "general.."
 (histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
@@ -84,7 +84,7 @@ u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
 # Define the shock
-shock = 0
+shock = 1
 # Cholesky decomposition
 B_mat = np.linalg.matrix_transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
