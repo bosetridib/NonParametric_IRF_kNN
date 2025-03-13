@@ -59,7 +59,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "general."
+interest = "general"
 (histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
@@ -77,35 +77,29 @@ dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimate y_T
-y_f = np.matmul(y.loc[omega.iloc[ind].index].T, weig).to_frame().T
-df_omega = np.matmul(df.loc[omega.iloc[ind].index].T, weig).to_frame().T
+y_f = np.matmul(df.loc[omega.iloc[ind].index].T, weig).to_frame().T
 
 # Define the shock
 shock = 1
 
-u_y = y.loc[omega.iloc[ind].index] - y_f.iloc[0].values.squeeze()
-u_mean = u_y.mul(weig, axis = 0)
-sigma_u = np.matmul((u_y - u_mean).T, (u_y - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
-delta_y = np.linalg.cholesky(sigma_u)[:,shock]
-
-u = df.loc[omega.iloc[ind].index] - df_omega.values.squeeze()
+u = df.loc[omega.iloc[ind].index] - y_f.values.squeeze()
 u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
 # Cholesky decomposition
-# B_mat = np.linalg.cholesky(sigma_u)
+B_mat = np.linalg.cholesky(sigma_u)
 # The desired shock
-delta = np.linalg.cholesky(sigma_u)[:,shock]
+delta = B_mat[:,shock]
 
 for h in range(1,H+1):
-    y_f.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+    y_f.loc[h] = np.matmul(df.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f)
 
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
-y_f_delta.loc[0] = y_f.loc[0] + delta_y
+y_f_delta.loc[0] = y_f.loc[0] + delta
 
-histoi_delta = (df_omega.iloc[0] + delta - omega_mean.values)/omega_std.values
+histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
 
 # histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
@@ -115,11 +109,12 @@ dist = dist[0,:]; ind = ind[0,:]
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
 for h in range(1,H+1):
-    y_f_delta.loc[h] = np.matmul(y.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+    y_f_delta.loc[h] = np.matmul(df.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
-dataplot(girf*(50/delta[shock]))
+girf[trend] = mod.inv_logdiff_girf(girf[trend])
+dataplot(girf*(50/girf.iloc[0,shock]))
 # dataplot(girf)
 
 # y_f.plot(
