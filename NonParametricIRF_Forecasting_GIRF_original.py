@@ -79,17 +79,16 @@ weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimate y_T
 y_f = np.matmul(df.loc[omega.iloc[ind].index].T, weig).to_frame().T
 
-# Define the shock
-shock = 1
-
 u = df.loc[omega.iloc[ind].index] - y_f.values.squeeze()
 u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
+# Define the shock
+shock = 0
 # Cholesky decomposition
-B_mat = np.linalg.cholesky(sigma_u)
+B_mat = np.linalg.matrix_transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
-delta = B_mat[:,shock]
+delta = B_mat[shock]
 
 for h in range(1,H+1):
     y_f.loc[h] = np.matmul(df.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
@@ -100,7 +99,7 @@ y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 
 histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
-
+# histoi_delta = histoi + (delta - omega_mean.values)/omega_std.values
 # histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
 knn.fit(omega)
