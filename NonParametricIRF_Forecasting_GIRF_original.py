@@ -11,10 +11,10 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 
 y = pd.concat([epu, cpu, macro_data], axis=1)
-
+# trend = y.columns
 df = y.copy()
 
-mod = transformation_logdiff(macro_data[trend])
+mod = transformation_logdiff(df[trend])
 
 df[trend] = mod.logdiff()
 # p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
@@ -90,6 +90,10 @@ B_mat = np.linalg.matrix_transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
 delta = B_mat[shock]
 
+dist, ind = knn.kneighbors(((y_f.iloc[0] - omega_mean)/omega_std).to_numpy().reshape(1,-1))
+dist = dist[0,:]; ind = ind[0,:]
+weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+
 for h in range(1,H+1):
     y_f.loc[h] = np.matmul(df.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f)
@@ -102,7 +106,6 @@ histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
 # histoi_delta = histoi + (delta - omega_mean.values)/omega_std.values
 # histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
-knn.fit(omega)
 dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
