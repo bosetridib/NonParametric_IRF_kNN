@@ -86,7 +86,7 @@ sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.
 # Define the shock
 shock = 1
 # Cholesky decomposition
-B_mat = np.linalg.matrix_transpose(np.linalg.cholesky(sigma_u))
+B_mat = np.transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
 delta = B_mat[shock]
 
@@ -103,7 +103,6 @@ y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 
 histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
-# histoi_delta = histoi + (delta - omega_mean.values)/omega_std.values
 # histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
 
 dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
