@@ -90,10 +90,6 @@ B_mat = np.transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
 delta = B_mat[shock]
 
-dist, ind = knn.kneighbors(((y_f.iloc[0] - omega_mean)/omega_std).to_numpy().reshape(1,-1))
-dist = dist[0,:]; ind = ind[0,:]
-weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-
 for h in range(1,H+1):
     y_f.loc[h] = np.matmul(df.loc[omega.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f)
