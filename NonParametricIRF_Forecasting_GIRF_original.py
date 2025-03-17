@@ -59,7 +59,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "general.."
+interest = "general..."
 (histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
@@ -179,7 +179,7 @@ girf_complete = girf_complete.astype('float')
 girf_complete = girf_complete.unstack()
 multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
 # Plot
-girfplot(df, girf_complete*(50/girf.iloc[0,shock]), multi_index_col, shock)
+# girfplot(df, girf_complete*(50/girf.iloc[0,shock]), multi_index_col, shock)
 #
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -202,7 +202,7 @@ girf_complete = girf_complete*(50/girf.iloc[0,shock])
 # plt.show()
 
 c=0
-plt.figure(figsize = (10,25))
+plt.figure(figsize = (25,10))
 gs1 = gridspec.GridSpec(2, 4)
 gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
 c=0
