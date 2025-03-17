@@ -123,41 +123,38 @@ dataplot(girf*(50/girf.iloc[0,shock]))
 # plt.show()
 
 # Confidence Intervals
-R=500
+R=50
 sim_girf = []
 
 # Perform simulations
 for r in range(0,R):
     omega_resamp = omega.sample(n=T, replace=True).sort_index()
+    omega_resamp_mean = df.loc[omega_resamp.index].mean()
+    omega_resamp_sd = df.loc[omega_resamp.index].std()
     # Estimate y_T
     knn.fit(omega_resamp)
     dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     # Estimate y_T
-    y_f_resamp = np.matmul(y.loc[omega_resamp.iloc[ind].index].T, weig).to_frame().T
+    y_f_resamp = np.matmul(df.loc[omega_resamp.iloc[ind].index].T, weig).to_frame().T
     for h in range(1,H+1):
-        y_f_resamp.loc[h] = np.matmul(y.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+        y_f_resamp.loc[h] = np.matmul(df.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
     
     y_f_delta_resamp = pd.DataFrame(columns=y_f_resamp.columns)
     y_f_delta_resamp.loc[0] = y_f_resamp.loc[0] + delta
 
-    df_star = pd.concat([y.loc[omega_resamp.iloc[-3:-1].index], y_f_delta_resamp])
-    df_star[['Industrial_Production','PriceIndex_Producer','PriceIndex_PCE', 'Emission_CO2']] = np.log(df_star[[
-        'Industrial_Production','PriceIndex_Producer','PriceIndex_PCE','Emission_CO2'
-    ]]).diff().dropna()
-    df_star = (df_star - y.mean())/y.std()
-    histoi_delta = df_star.iloc[-1]
-    # histoi_delta = (y_f_delta.loc[0] - y.mean())/y.std()
-    histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
-    knn.fit(omega_resamp)
-    dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
+    histoi_delta_resamp = (y_f_resamp.loc[0] - omega_resamp_mean)/omega_resamp_sd
+    histoi_delta_resamp = pd.concat([histoi_delta, histoi], axis=0)[:-df.shape[1]]
+    dist, ind = knn.kneighbors(histoi_delta_resamp.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
     for h in range(1,H+1):
-        y_f_delta_resamp.loc[h] = np.matmul(y.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
-    # dataplot(y_f_delta)
-    sim_girf.append(y_f_delta_resamp - y_f_resamp)
+        y_f_delta_resamp.loc[h] = np.matmul(df.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+    
+    girf_resamp = y_f_delta_resamp - y_f_resamp
+    girf_resamp[trend] = mod.inv_logdiff_girf(girf_resamp[trend])
+    sim_girf.append(girf_resamp)
     print('loop: '+str(r))
 # End of loop, and now the sim_list_df has each of the resampled dataframes
 
@@ -182,7 +179,7 @@ girf_complete = girf_complete.astype('float')
 girf_complete = girf_complete.unstack()
 multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
 # Plot
-girfplot(df, girf_complete*(50/delta[shock]), multi_index_col, shock)
+girfplot(df, girf_complete*(50/girf.iloc[0,shock]), multi_index_col, shock)
 #
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -191,18 +188,19 @@ plt.figure(figsize = (10,25))
 gs1 = gridspec.GridSpec(2, 4)
 gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes.
 
-c=0
-for i in range(8):
-    ax1 = plt.subplot(gs1[i])
-    # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][1]]*(50/delta[shock]))
-    ax1.set_title(y.columns[c])
-    ax1.tick_params(axis="y",direction="in", pad=-20)
-    c += 1
-plt.tight_layout()
-plt.show()
+girf_complete = girf_complete*(50/girf.iloc[0,shock])
 
-girf_complete = girf_complete*(50/delta[shock])
+# c=0
+# for i in range(8):
+#     ax1 = plt.subplot(gs1[i])
+#     # plt.axis('on')
+#     ax1.plot(girf_complete[multi_index_col[c][1]])
+#     ax1.set_title(y.columns[c])
+#     ax1.tick_params(axis="y",direction="in", pad=-20)
+#     c += 1
+# plt.tight_layout()
+# plt.show()
+
 c=0
 plt.figure(figsize = (10,25))
 gs1 = gridspec.GridSpec(2, 4)
