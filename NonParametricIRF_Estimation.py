@@ -23,7 +23,7 @@ df = df.dropna()
 # dataplot(y)
 
 # VAR analysis
-model_var = sm.tsa.VAR(y)
+model_var = sm.tsa.VAR(df)
 results_var = model_var.fit(6)
 # results_var.irf(40).plot(); plt.show()
 # results_var.irf(40).plot_cum_effects(); plt.show()
