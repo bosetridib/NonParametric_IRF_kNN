@@ -7,13 +7,18 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Setting y
-# The structural model we consider would have the Temperature Anomaly, CPU index,
+# The structural model we consider would have the EPU index, CPU index,
 # Industrial Production, Unemployment Rate, Producer's Price Index, Treasurey
 # Bill 3 months market rate, represented by following variables of interest
-# y = df.copy()
-y = df.copy()
+y = pd.concat([epu, cpu, macro_data], axis=1)
+
+df = y.copy()
+
+mod = transformation_logdiff(df[trend])
+
+df[trend] = mod.logdiff()
+df = df.dropna()
 # voi = [0,2,3,4,5,7]
-# y = df_mod.iloc[:,voi]
 
 # dataplot(y)
 
@@ -22,12 +27,13 @@ model_var = sm.tsa.VAR(y)
 results_var = model_var.fit(6)
 # results_var.irf(40).plot(); plt.show()
 # results_var.irf(40).plot_cum_effects(); plt.show()
-# Usual and orthogonal IRFs (use 0:temperature, 2:cpu_index )
+# Usual and orthogonal IRFs (use 0:epu_index, 1:cpu_index )
 irf = results_var.ma_rep(40)
-# irfplot(irf,df,2)
-# irfplot(irf.cumsum(axis = 0),df,2)
+# irfplot(irf,df,0)
+# irfplot(irf.cumsum(axis = 0),df,0)
 # irf = results_var.orth_ma_rep(40)
-# irfplot(irf,df,2)
+# irfplot(irf,df,1)
+# irfplot(irf.cumsum(axis = 0),df,1)
 
 # Cumulative irf
 # irf_cumul = results_var.orth_ma_rep(40).cumsum(axis = 0)
@@ -42,7 +48,7 @@ irf = results_var.ma_rep(40)
 # y_normalized = (y - y.min())/((y.max() - y.min()))
 # Standardization
 # y_normalized = (y - y.mean())/y.std()
-omega = df.copy()
+omega = y.copy()
 # omega = omega.loc[omega['Unemployment_Rate'] >= 6]
 
 histoi = omega.index.date[-1]
@@ -51,9 +57,9 @@ histoi = omega.index.date[-1]
 from sklearn.preprocessing import RobustScaler
 robust_transformer = RobustScaler()
 
-robust_transformer.fit(df)
+robust_transformer.fit(y)
 df_mod_scaled = pd.DataFrame(
-    robust_transformer.transform(df),
+    robust_transformer.transform(y),
     columns=df.columns, index=df.index
 )
 
