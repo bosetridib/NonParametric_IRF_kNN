@@ -78,10 +78,15 @@ dist = dist[0,:]; ind = ind[0,:]
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 # Estimate y_T
 y_f = np.matmul(df.loc[omega.iloc[ind].index].T, weig).to_frame().T
+# y_f = np.matmul(y.loc[omega.iloc[ind].index].T, weig).to_frame().T
 
 u = df.loc[omega.iloc[ind].index] - y_f.values.squeeze()
 u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
+
+# u = y.loc[omega.iloc[ind].index] - y_f.values.squeeze()
+# u_mean = u.mul(weig, axis = 0)
+# sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
 # Define the shock
 shock = 1
