@@ -14,9 +14,9 @@ y = pd.concat([epu, cpu, macro_data], axis=1)
 
 df = y.copy()
 
-mod = transformation_logdiff(df[trend])
+# mod = transformation_logdiff(df[trend])
 
-df[trend] = mod.logdiff()
+df[trend] = np.log(df[trend])
 df = df.dropna()
 # voi = [0,2,3,4,5,7]
 
