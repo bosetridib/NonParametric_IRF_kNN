@@ -26,10 +26,7 @@ df[trend] = mod.logdiff()
 H = 40
 
 def histoiOmega(macro_condition):
-    if macro_condition == "general":
-        histoi = df.iloc[-(H+1):].mean()
-        omega = df.iloc[:-(H+1)]
-    elif macro_condition == "great_recession":
+    if macro_condition == "great_recession":
         histoi = df.loc['2008-11-01':'2009-10-01'].mean()
         omega = pd.concat([df.loc[:'2008-10-01'], df.loc['2009-11-01':]])
     elif macro_condition == "recessionary":
@@ -43,24 +40,30 @@ def histoiOmega(macro_condition):
         histoi = omega.iloc[-1]
     elif macro_condition == "LowCPU":
         omega = df.loc[y.loc[y['cpu_index'] < y['cpu_index'].mean()].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     elif macro_condition == "HighCPU":
         omega = df.loc[y.loc[y['cpu_index'] >= y['cpu_index'].mean()].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     elif macro_condition == "LowEPU":
         omega = df.loc[y.loc[y['epu_index'] < y['epu_index'].mean()].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     elif macro_condition == "HighEPU":
         omega = df.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     else:
-        histoi = df.iloc[-1]
         omega = df.iloc[:-(H+1)]
+        histoi = omega.mean()
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPU"
+interest = "HighCPU"
 (histoi, omega) = histoiOmega(interest)
+
+# plt.figure(figsize = (25,10))
+# plt.plot(cpu)
+# for i in omega.index:
+#     plt.axvspan(i, i+pd.DateOffset(months=1), color="grey")
+# plt.show()
 
 df = df.dropna()
 omega = omega.dropna()
