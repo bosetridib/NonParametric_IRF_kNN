@@ -14,11 +14,11 @@ y = pd.concat([epu, cpu, macro_data], axis=1)
 # trend = y.columns
 df = y.copy()
 
-# mod = transformation_logdiff(df[trend])
+mod = transformation_logdiff(df[trend])
 
-# df[trend] = mod.logdiff()
+df[trend] = mod.logdiff()
 # p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
-df[trend] = np.log(df[trend])
+# df[trend] = np.log(df[trend])
 # Retrieve the standardized dataset
 
 # Forecasting
@@ -42,16 +42,16 @@ def histoiOmega(macro_condition):
         omega = df.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "LowCPU":
-        omega = df.loc[y.loc[y['cpu_index'] < 100].index]
+        omega = df.loc[y.loc[y['cpu_index'] < y['cpu_index'].mean()].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "HighCPU":
-        omega = df.loc[y.loc[y['cpu_index'] >= 100].index]
+        omega = df.loc[y.loc[y['cpu_index'] >= y['cpu_index'].mean()].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "LowEPU":
-        omega = df.loc[y.loc[y['epu_index'] < 100].index]
+        omega = df.loc[y.loc[y['epu_index'] < y['epu_index'].mean()].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "HighEPU":
-        omega = df.loc[y.loc[y['epu_index'] >= 100].index]
+        omega = df.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
         histoi = omega.iloc[-1]
     else:
         histoi = df.iloc[-1]
@@ -59,7 +59,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "general..."
+interest = "HighEPU"
 (histoi, omega) = histoiOmega(interest)
 
 df = df.dropna()
@@ -115,8 +115,8 @@ for h in range(1,H+1):
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
-# girf[trend] = mod.inv_logdiff_girf(girf[trend])
-dataplot(girf*(50/girf.iloc[0,shock]))
+girf[trend] = mod.inv_logdiff_girf(girf[trend])
+# dataplot(girf*(50/girf.iloc[0,shock]))
 # dataplot(girf)
 
 # y_f.plot(
@@ -158,7 +158,7 @@ for r in range(0,R):
         y_f_delta_resamp.loc[h] = np.matmul(df.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
     
     girf_resamp = y_f_delta_resamp - y_f_resamp
-    # girf_resamp[trend] = mod.inv_logdiff_girf(girf_resamp[trend])
+    girf_resamp[trend] = mod.inv_logdiff_girf(girf_resamp[trend])
     sim_girf.append(girf_resamp)
     print('loop: '+str(r))
 # End of loop, and now the sim_list_df has each of the resampled dataframes
