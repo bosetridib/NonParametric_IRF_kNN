@@ -63,7 +63,7 @@ class transformation_logdiff:
         return(inv_transformation)
     # Meant for GIRF inverse transform
     def inv_logdiff_girf(self, X):
-        inv_transformation = np.exp(X.cumsum())*self.init_val
+        inv_transformation = X.cumsum()
         return(inv_transformation)
     # Class ends
 # Send to the GIRF file

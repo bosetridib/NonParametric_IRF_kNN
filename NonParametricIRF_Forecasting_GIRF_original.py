@@ -14,11 +14,11 @@ y = pd.concat([epu, cpu, macro_data], axis=1)
 # trend = y.columns
 df = y.copy()
 
-# mod = transformation_logdiff(df[trend])
+mod = transformation_logdiff(df[trend])
 
-# df[trend] = mod.logdiff()
+df[trend] = mod.logdiff()
 # p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
-df[trend] = np.log(df[trend])
+
 # Retrieve the standardized dataset
 
 # Forecasting
@@ -118,7 +118,7 @@ for h in range(1,H+1):
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
-# girf[trend] = mod.inv_logdiff_girf(girf[trend])
+girf[trend] = mod.inv_logdiff_girf(girf[trend])
 # dataplot(girf*(50/girf.iloc[0,shock]))
 # dataplot(girf)
 
@@ -161,7 +161,7 @@ for r in range(0,R):
         y_f_delta_resamp.loc[h] = np.matmul(df.loc[omega_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
     
     girf_resamp = y_f_delta_resamp - y_f_resamp
-    # girf_resamp[trend] = mod.inv_logdiff_girf(girf_resamp[trend])
+    girf_resamp[trend] = mod.inv_logdiff_girf(girf_resamp[trend])
     sim_girf.append(girf_resamp)
     print('loop: '+str(r))
 # End of loop, and now the sim_list_df has each of the resampled dataframes
