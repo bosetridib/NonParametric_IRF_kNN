@@ -52,11 +52,11 @@ def histoiOmega(macro_condition):
         histoi = omega.mean()
     else:
         omega = df.iloc[:-(H+1)]
-        histoi = omega.mean()
+        histoi = df.iloc[-1]
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "LowCPU"
+interest = "LowCPU..."
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
