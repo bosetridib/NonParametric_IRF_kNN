@@ -56,7 +56,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "LowCPU..."
+interest = "LowEPU"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
