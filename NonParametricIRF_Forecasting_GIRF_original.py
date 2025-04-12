@@ -17,9 +17,7 @@ df = y.copy()
 mod = transformation_logdiff(df[trend])
 
 df[trend] = mod.logdiff()
-# p=2; df = sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]
-
-# Retrieve the standardized dataset
+p=6; pd.concat([df, sm.tsa.tsatools.lagmat(df[['Unemployment_Rate', 'Treasurey3Months']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
 # Forecasting
 # Horizon "in the middle"
@@ -52,11 +50,12 @@ def histoiOmega(macro_condition):
         histoi = omega.mean()
     else:
         omega = df.iloc[:-(H+1)]
-        histoi = df.iloc[-1]
+        #histoi = df.iloc[-1]
+        histoi = omega.mean()
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "LowEPU"
+interest = "HighEPU"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
