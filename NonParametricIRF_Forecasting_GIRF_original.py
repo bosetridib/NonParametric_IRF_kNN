@@ -17,7 +17,7 @@ df = y.copy()
 mod = transformation_logdiff(df[trend])
 
 df[trend] = mod.logdiff()
-p=6; pd.concat([df, sm.tsa.tsatools.lagmat(df[['Unemployment_Rate', 'Treasurey3Months']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
+# p=1; pd.concat([df, sm.tsa.tsatools.lagmat(df[['Unemployment_Rate', 'Treasurey3Months']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
 # Forecasting
 # Horizon "in the middle"
@@ -30,7 +30,7 @@ def histoiOmega(macro_condition):
     elif macro_condition == "recessionary":
         omega = df.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index]
         histoi = omega.iloc[-1]
-    elif macro_condition == "booming":
+    elif macro_condition == "expansionary":
         omega = df.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "inflationary":
@@ -48,6 +48,9 @@ def histoiOmega(macro_condition):
     elif macro_condition == "HighEPU":
         omega = df.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
         histoi = omega.mean()
+    elif macro_condition == "HighEPUnRecessionary":
+        omega = df.loc[y.loc[(y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= 5.5)].index]
+        histoi = omega.mean()
     else:
         omega = df.iloc[:-(H+1)]
         #histoi = df.iloc[-1]
@@ -55,7 +58,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPU"
+interest = "HighEPUnRecessionary"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
