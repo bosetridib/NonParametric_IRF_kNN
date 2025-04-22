@@ -49,7 +49,24 @@ def histoiOmega(macro_condition):
         omega = df.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
         histoi = omega.mean()
     elif macro_condition == "HighEPUnRecessionary":
-        omega = df.loc[y.loc[(y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= 5.5)].index]
+        omega = df.loc[y.loc[
+            (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
+        ].index]
+        histoi = omega.mean()
+    elif macro_condition == "HighEPUnExpansionary":
+        omega = df.loc[y.loc[
+            (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
+        ].index]
+        histoi = omega.mean()
+    elif macro_condition == "LowEPUnRecessionary":
+        omega = df.loc[y.loc[
+            (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
+        ].index]
+        histoi = omega.mean()
+    elif macro_condition == "LowEPUnExpansionary":
+        omega = df.loc[y.loc[
+            (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
+        ].index]
         histoi = omega.mean()
     else:
         omega = df.iloc[:-(H+1)]
@@ -58,14 +75,14 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "recessionary"
+interest = "LowEPUnRecessionary"
 (histoi, omega) = histoiOmega(interest)
 
-plt.figure(figsize = (25,10))
-plt.plot(y[['Unemployment_Rate']])
-for i in omega.index:
-    plt.axvspan(i, i+pd.DateOffset(months=1), color="grey")
-plt.show()
+# plt.figure(figsize = (25,10))
+# plt.plot(y[['Unemployment_Rate']])
+# for i in omega.index:
+#     plt.axvspan(i, i+pd.DateOffset(months=1), color="grey")
+# plt.show()
 
 df = df.dropna()
 omega = omega.dropna()
@@ -76,7 +93,7 @@ omega = (omega - omega_mean)/omega_std
 histoi = (histoi - omega_mean)/omega_std
 T = omega.shape[0]
 
-knn = NearestNeighbors(n_neighbors=T-H, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
