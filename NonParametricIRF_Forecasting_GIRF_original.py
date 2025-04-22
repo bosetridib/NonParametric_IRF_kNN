@@ -28,10 +28,10 @@ def histoiOmega(macro_condition):
         histoi = df.loc['2008-11-01':'2009-10-01'].mean()
         omega = pd.concat([df.loc[:'2008-10-01'], df.loc['2009-11-01':]])
     elif macro_condition == "recessionary":
-        omega = df.loc[y.loc[y['Unemployment_Rate'] >= 5.5].index]
+        omega = df.loc[y.loc[y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean()].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "expansionary":
-        omega = df.loc[y.loc[y['Unemployment_Rate'] < 5.5].index]
+        omega = df.loc[y.loc[y['Unemployment_Rate'] < y['Unemployment_Rate'].mean()].index]
         histoi = omega.iloc[-1]
     elif macro_condition == "inflationary":
         omega = df.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
@@ -58,14 +58,14 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPUnRecessionary"
+interest = "recessionary"
 (histoi, omega) = histoiOmega(interest)
 
-# plt.figure(figsize = (25,10))
-# plt.plot(cpu)
-# for i in omega.index:
-#     plt.axvspan(i, i+pd.DateOffset(months=1), color="grey")
-# plt.show()
+plt.figure(figsize = (25,10))
+plt.plot(y[['Unemployment_Rate']])
+for i in omega.index:
+    plt.axvspan(i, i+pd.DateOffset(months=1), color="grey")
+plt.show()
 
 df = df.dropna()
 omega = omega.dropna()
