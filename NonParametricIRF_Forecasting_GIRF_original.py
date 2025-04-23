@@ -75,7 +75,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "LowEPUnRecessionary"
+interest = "HighEPUnRecessionary"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
