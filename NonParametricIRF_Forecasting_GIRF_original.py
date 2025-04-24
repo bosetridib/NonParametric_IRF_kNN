@@ -75,7 +75,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPUnRecessionary"
+interest = "HighEPU"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
@@ -235,9 +235,10 @@ c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][0]], color = 'black')
+    #ax1.plot(girf_complete[multi_index_col[c][0]], color = 'black')
     ax1.plot(girf_complete[multi_index_col[c][1]])
-    ax1.plot(girf_complete[multi_index_col[c][2]], color = 'black')
+    #ax1.plot(girf_complete[multi_index_col[c][2]], color = 'black')
+    ax1.fill_between(np.arange(H+1), girf_complete[multi_index_col[c][0]], girf_complete[multi_index_col[c][2]], alpha = 0.5)
     ax1.title.set_text(y.columns[shock] + ">" + y.columns[c])
     ax1.tick_params(axis="y",direction="in", pad=-20)
     c += 1
