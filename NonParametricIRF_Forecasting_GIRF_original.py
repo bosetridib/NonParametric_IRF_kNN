@@ -75,7 +75,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPU"
+interest = "LowEPU"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
@@ -227,6 +227,27 @@ import matplotlib.gridspec as gridspec
 #     c += 1
 # plt.tight_layout()
 # plt.show()
+# , color = 'r'
+plt.figure(figsize = (25,10))
+gs1 = gridspec.GridSpec(2, 4)
+gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
+c=0
+for i in range(8):
+    ax1 = plt.subplot(gs1[i])
+    # plt.axis('on')
+    ax1.plot(girf_complete[multi_index_col[c][1]])
+    ax1.fill_between(
+        np.arange(H+1),
+        girf_complete[multi_index_col[c][0]],
+        girf_complete[multi_index_col[c][2]],
+        alpha = 0.5
+    )
+    ax1.set_title(y.columns[c], size = 20)
+    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
+    c += 1
+plt.suptitle(y.columns[shock] + " shock", fontsize=20)
+plt.tight_layout()
+plt.show()
 
 plt.figure(figsize = (25,10))
 gs1 = gridspec.GridSpec(2, 4)
@@ -235,13 +256,23 @@ c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
-    #ax1.plot(girf_complete[multi_index_col[c][0]], color = 'black')
     ax1.plot(girf_complete[multi_index_col[c][1]])
-    #ax1.plot(girf_complete[multi_index_col[c][2]], color = 'black')
-    ax1.fill_between(np.arange(H+1), girf_complete[multi_index_col[c][0]], girf_complete[multi_index_col[c][2]], alpha = 0.5)
-    ax1.title.set_text(y.columns[c])
-    ax1.tick_params(axis="y",direction="in", pad=-15)
+    ax1.plot(girf_complete_high[multi_index_col[c][1]], color = 'r')
+    ax1.fill_between(
+        np.arange(H+1),
+        girf_complete[multi_index_col[c][0]],
+        girf_complete[multi_index_col[c][2]],
+        alpha = 0.5
+    )
+    ax1.fill_between(
+        np.arange(H+1),
+        girf_complete_high[multi_index_col[c][0]],
+        girf_complete_high[multi_index_col[c][2]],
+        alpha = 0.5, color = 'r'
+    )
+    ax1.set_title(y.columns[c], size = 20)
+    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
     c += 1
-
+plt.suptitle(y.columns[shock] + " shock", fontsize=20)
 plt.tight_layout()
 plt.show()
