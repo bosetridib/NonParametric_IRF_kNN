@@ -239,8 +239,9 @@ for i in range(8):
     ax1.plot(girf_complete[multi_index_col[c][1]])
     #ax1.plot(girf_complete[multi_index_col[c][2]], color = 'black')
     ax1.fill_between(np.arange(H+1), girf_complete[multi_index_col[c][0]], girf_complete[multi_index_col[c][2]], alpha = 0.5)
-    ax1.title.set_text(y.columns[shock] + ">" + y.columns[c])
-    ax1.tick_params(axis="y",direction="in", pad=-20)
+    ax1.title.set_text(y.columns[c])
+    ax1.tick_params(axis="y",direction="in", pad=-15)
     c += 1
+
 plt.tight_layout()
 plt.show()
