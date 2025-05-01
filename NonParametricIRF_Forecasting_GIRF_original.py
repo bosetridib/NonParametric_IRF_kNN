@@ -75,13 +75,13 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "LowEPU"
+interest = "recessionary"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
-# plt.plot(y[['Unemployment_Rate']])
+# plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
 # for i in omega.index:
-#     plt.axvspan(i, i+pd.DateOffset(months=1), color="grey")
+#     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
 # plt.show()
 
 df = df.dropna()
