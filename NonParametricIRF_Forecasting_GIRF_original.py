@@ -9,9 +9,8 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
-shock = 1
+shock = 0
 y = pd.concat([epu, cpu, macro_data], axis=1)
-# trend = y.columns
 df = y.copy()
 
 mod = transformation_logdiff(df[trend])
@@ -75,7 +74,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "recessionary"
+interest = "HighEPU"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
@@ -235,19 +234,24 @@ c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][1]])
+    ax1.plot(girf_complete[multi_index_col[c][1]], color='black')
     ax1.fill_between(
         np.arange(H+1),
         girf_complete[multi_index_col[c][0]],
         girf_complete[multi_index_col[c][2]],
-        alpha = 0.5
+        color = 'lightgrey'
     )
     ax1.set_title(y.columns[c], size = 20)
     ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
     c += 1
-plt.suptitle(y.columns[shock] + " shock", fontsize=20)
+plt.suptitle(
+    y.columns[shock] + " shock in " + interest + "periods",
+    fontsize=20
+)
 plt.tight_layout()
 plt.show()
+
+girf_complete_high = girf_complete.copy()
 
 plt.figure(figsize = (25,10))
 gs1 = gridspec.GridSpec(2, 4)

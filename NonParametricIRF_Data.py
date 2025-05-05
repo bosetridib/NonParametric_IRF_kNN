@@ -31,11 +31,11 @@ epu.set_index(
     ), inplace=True
 )
 epu.drop(
-    ['Year', 'Month', 'Three_Component_Index'],
+    ['Year', 'Month'],
     axis=1,
     inplace=True
 )
-epu = epu.loc['1987-04-01':'2019-06-01']
+epu = epu.sort_index().loc['1987-04-01':'2019-06-01']
 epu.columns = ['epu_index']
 
 macro_data = DataReader(
