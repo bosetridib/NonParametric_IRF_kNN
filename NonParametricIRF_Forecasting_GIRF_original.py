@@ -74,11 +74,14 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPU"
+interest = "HighEPUnExpansionary"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,10))
+# plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
 # plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
+# plt.xticks(fontsize = 25)
+# plt.yticks(fontsize = 25)
 # for i in omega.index:
 #     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
 # plt.show()
