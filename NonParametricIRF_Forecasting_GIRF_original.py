@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
-shock = 0
+shock = 1
 y = pd.concat([epu, cpu, macro_data], axis=1)
 df = y.copy()
 
@@ -77,14 +77,14 @@ def histoiOmega(macro_condition):
 interest = "HighEPUnRecessionary"
 (histoi, omega) = histoiOmega(interest)
 
-# plt.figure(figsize = (25,10))
+plt.figure(figsize = (12,10))
 # plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
-# plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
-# plt.xticks(fontsize = 25)
-# plt.yticks(fontsize = 25)
-# for i in omega.index:
-#     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
-# plt.show()
+plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
+plt.xticks(fontsize = 25)
+plt.yticks(fontsize = 25)
+for i in omega.index:
+    plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
+plt.show()
 
 df = df.dropna()
 omega = omega.dropna()
