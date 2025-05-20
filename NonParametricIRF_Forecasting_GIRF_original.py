@@ -28,13 +28,13 @@ def histoiOmega(macro_condition):
         omega = pd.concat([df.loc[:'2008-10-01'], df.loc['2009-11-01':]])
     elif macro_condition == "recessionary":
         omega = df.loc[y.loc[y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean()].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     elif macro_condition == "expansionary":
         omega = df.loc[y.loc[y['Unemployment_Rate'] < y['Unemployment_Rate'].mean()].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     elif macro_condition == "inflationary":
         omega = df.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
-        histoi = omega.iloc[-1]
+        histoi = omega.mean()
     elif macro_condition == "LowCPU":
         omega = df.loc[y.loc[y['cpu_index'] < y['cpu_index'].mean()].index]
         histoi = omega.mean()
@@ -74,7 +74,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "HighEPUnRecessionary"
+interest = "recessionary"
 (histoi, omega) = histoiOmega(interest)
 
 plt.figure(figsize = (12,10))
@@ -248,7 +248,7 @@ for i in range(8):
     ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
     c += 1
 plt.suptitle(
-    y.columns[shock] + " shock in " + interest + "periods",
+    y.columns[shock] + " shock in " + interest + " periods",
     fontsize=20
 )
 plt.tight_layout()
