@@ -26,10 +26,10 @@ def histoiOmega(macro_condition):
     if macro_condition == "great_recession":
         histoi = df.loc['2008-11-01':'2009-10-01'].mean()
         omega = pd.concat([df.loc[:'2008-10-01'], df.loc['2009-11-01':]])
-    elif macro_condition == "recessionary":
+    elif macro_condition == "recession":
         omega = df.loc[y.loc[y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean()].index]
         histoi = omega.mean()
-    elif macro_condition == "expansionary":
+    elif macro_condition == "expansion":
         omega = df.loc[y.loc[y['Unemployment_Rate'] < y['Unemployment_Rate'].mean()].index]
         histoi = omega.mean()
     elif macro_condition == "inflationary":
@@ -47,22 +47,22 @@ def histoiOmega(macro_condition):
     elif macro_condition == "HighEPU":
         omega = df.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
         histoi = omega.mean()
-    elif macro_condition == "HighEPUnRecessionary":
+    elif macro_condition == "High EPU - Recession":
         omega = df.loc[y.loc[
             (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
         histoi = omega.mean()
-    elif macro_condition == "HighEPUnExpansionary":
+    elif macro_condition == "High EPU - Expansion":
         omega = df.loc[y.loc[
             (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
         histoi = omega.mean()
-    elif macro_condition == "LowEPUnRecessionary":
+    elif macro_condition == "Low EPU - Recession":
         omega = df.loc[y.loc[
             (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
         histoi = omega.mean()
-    elif macro_condition == "LowEPUnExpansionary":
+    elif macro_condition == "Low EPU - Expansion":
         omega = df.loc[y.loc[
             (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
