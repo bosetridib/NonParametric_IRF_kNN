@@ -16,7 +16,9 @@ df = y.copy()
 mod = transformation_logdiff(df[trend])
 
 df[trend] = mod.logdiff()
-p=1; pd.concat([df, sm.tsa.tsatools.lagmat(df[['epu']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
+p=2
+# df = pd.concat([df, sm.tsa.tsatools.lagmat(df[['epu_index']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
+df = pd.concat([df, sm.tsa.tsatools.lagmat(df, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
 # Forecasting
 # Horizon "in the middle"
@@ -26,27 +28,6 @@ def histoiOmega(macro_condition):
     if macro_condition == "great_recession":
         histoi = df.loc['2008-11-01':'2009-10-01'].mean()
         omega = pd.concat([df.loc[:'2008-10-01'], df.loc['2009-11-01':]])
-    # elif macro_condition == "recession":
-    #     omega = df.loc[y.loc[y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "expansion":
-    #     omega = df.loc[y.loc[y['Unemployment_Rate'] < y['Unemployment_Rate'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "inflationary":
-    #     omega = df.loc[y.loc[df['Growth_PriceIndex_PCE']>0.0025].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "LowCPU":
-    #     omega = df.loc[y.loc[y['cpu_index'] < y['cpu_index'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "HighCPU":
-    #     omega = df.loc[y.loc[y['cpu_index'] >= y['cpu_index'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "LowEPU":
-    #     omega = df.loc[y.loc[y['epu_index'] < y['epu_index'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "HighEPU":
-    #     omega = df.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
-    #     histoi = omega.mean()
     elif macro_condition == "High EPU - Recession":
         omega = df.loc[y.loc[
             (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
@@ -86,6 +67,8 @@ omega = (omega - omega_mean)/omega_std
 histoi = (histoi - omega_mean)/omega_std
 T = omega.shape[0]
 
+T = 30
+
 knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
@@ -99,12 +82,6 @@ u = df.loc[omega.iloc[ind].index] - y_f.values.squeeze()
 u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 
-# u = y.loc[omega.iloc[ind].index] - y_f.values.squeeze()
-# u_mean = u.mul(weig, axis = 0)
-# sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
-
-# Define the shock
-# shock = 1
 # Cholesky decomposition
 B_mat = np.transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
@@ -133,14 +110,6 @@ girf = y_f_delta - y_f
 girf[trend] = mod.inv_logdiff_girf(girf[trend])
 # dataplot(girf*(50/girf.iloc[0,shock]))
 # dataplot(girf)
-
-# y_f.plot(
-#     subplots=True, layout=(2,4), color = 'blue',
-#     ax=y_f_delta.plot(
-#         subplots=True, layout=(2,4), color = 'red'
-#     )
-# )
-# plt.show()
 
 # Confidence Intervals
 R=50
@@ -207,20 +176,6 @@ girf_complete = girf_complete*(50/girf.iloc[0,shock])
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-# plt.figure(figsize = (10,25))
-# gs1 = gridspec.GridSpec(2, 4)
-# gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes.
-# c=0
-# for i in range(8):
-#     ax1 = plt.subplot(gs1[i])
-#     # plt.axis('on')
-#     ax1.plot(girf_complete[multi_index_col[c][1]])
-#     ax1.set_title(y.columns[c])
-#     ax1.tick_params(axis="y",direction="in", pad=-20)
-#     c += 1
-# plt.tight_layout()
-# plt.show()
-# , color = 'r'
 plt.figure(figsize = (25,10))
 gs1 = gridspec.GridSpec(2, 4)
 gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
@@ -246,31 +201,3 @@ plt.tight_layout()
 plt.show()
 
 girf_complete_high = girf_complete.copy()
-
-plt.figure(figsize = (25,10))
-gs1 = gridspec.GridSpec(2, 4)
-gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
-c=0
-for i in range(8):
-    ax1 = plt.subplot(gs1[i])
-    # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][1]])
-    ax1.plot(girf_complete_high[multi_index_col[c][1]], color = 'r')
-    ax1.fill_between(
-        np.arange(H+1),
-        girf_complete[multi_index_col[c][0]],
-        girf_complete[multi_index_col[c][2]],
-        alpha = 0.5
-    )
-    ax1.fill_between(
-        np.arange(H+1),
-        girf_complete_high[multi_index_col[c][0]],
-        girf_complete_high[multi_index_col[c][2]],
-        alpha = 0.5, color = 'r'
-    )
-    ax1.set_title(y.columns[c], size = 20)
-    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
-    c += 1
-plt.suptitle(y.columns[shock] + " shock", fontsize=20)
-plt.tight_layout()
-plt.show()
