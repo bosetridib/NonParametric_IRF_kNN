@@ -74,17 +74,17 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "recessionary"
+interest = "Low EPU - Expansion"
 (histoi, omega) = histoiOmega(interest)
 
-plt.figure(figsize = (12,10))
-# plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
-plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
-plt.xticks(fontsize = 25)
-plt.yticks(fontsize = 25)
-for i in omega.index:
-    plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
-plt.show()
+# plt.figure(figsize = (12,10))
+# # plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
+# plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
+# plt.xticks(fontsize = 25)
+# plt.yticks(fontsize = 25)
+# for i in omega.index:
+#     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
+# plt.show()
 
 df = df.dropna()
 omega = omega.dropna()
@@ -95,7 +95,7 @@ omega = (omega - omega_mean)/omega_std
 histoi = (histoi - omega_mean)/omega_std
 T = omega.shape[0]
 
-knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=T-H, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -253,6 +253,9 @@ plt.suptitle(
 )
 plt.tight_layout()
 plt.show()
+
+
+
 
 girf_complete_high = girf_complete.copy()
 
