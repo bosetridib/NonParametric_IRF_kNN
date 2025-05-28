@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
-shock = 1
+shock = 0
 y = pd.concat([epu, cpu, macro_data], axis=1)
 df = y.copy()
 
@@ -74,7 +74,7 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "High EPU - Recession"
+interest = "Low EPU - Expansion"
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,8))
