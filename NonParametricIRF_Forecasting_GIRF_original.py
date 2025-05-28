@@ -74,14 +74,14 @@ def histoiOmega(macro_condition):
         print("Default history and omega.")
     return (histoi, omega)
 
-interest = "Low EPU - Expansion"
+interest = "High EPU - Recession"
 (histoi, omega) = histoiOmega(interest)
 
-# plt.figure(figsize = (12,10))
+# plt.figure(figsize = (25,8))
 # # plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
 # plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
-# plt.xticks(fontsize = 25)
-# plt.yticks(fontsize = 25)
+# plt.xticks(fontsize = 40)
+# plt.yticks(fontsize = 40)
 # for i in omega.index:
 #     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
 # plt.show()
@@ -95,7 +95,7 @@ omega = (omega - omega_mean)/omega_std
 histoi = (histoi - omega_mean)/omega_std
 T = omega.shape[0]
 
-knn = NearestNeighbors(n_neighbors=T-H, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -230,9 +230,9 @@ import matplotlib.gridspec as gridspec
 # plt.tight_layout()
 # plt.show()
 # , color = 'r'
-plt.figure(figsize = (25,10))
+plt.figure(figsize = (40,10))
 gs1 = gridspec.GridSpec(2, 4)
-gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
+gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
 c=0
 for i in range(8):
     ax1 = plt.subplot(gs1[i])
@@ -244,12 +244,13 @@ for i in range(8):
         girf_complete[multi_index_col[c][2]],
         color = 'lightgrey'
     )
-    ax1.set_title(y.columns[c], size = 20)
-    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
+    ax1.set_title(y.columns[c], size = 40)
+    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=40)
+    ax1.tick_params(axis="x",direction="in", pad=-20, labelsize=40)
     c += 1
 plt.suptitle(
     y.columns[shock] + " shock in " + interest + " periods",
-    fontsize=20
+    fontsize=40
 )
 plt.tight_layout()
 plt.show()
@@ -257,32 +258,32 @@ plt.show()
 
 
 
-girf_complete_high = girf_complete.copy()
+# girf_complete_high = girf_complete.copy()
 
-plt.figure(figsize = (25,10))
-gs1 = gridspec.GridSpec(2, 4)
-gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
-c=0
-for i in range(8):
-    ax1 = plt.subplot(gs1[i])
-    # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][1]])
-    ax1.plot(girf_complete_high[multi_index_col[c][1]], color = 'r')
-    ax1.fill_between(
-        np.arange(H+1),
-        girf_complete[multi_index_col[c][0]],
-        girf_complete[multi_index_col[c][2]],
-        alpha = 0.5
-    )
-    ax1.fill_between(
-        np.arange(H+1),
-        girf_complete_high[multi_index_col[c][0]],
-        girf_complete_high[multi_index_col[c][2]],
-        alpha = 0.5, color = 'r'
-    )
-    ax1.set_title(y.columns[c], size = 20)
-    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
-    c += 1
-plt.suptitle(y.columns[shock] + " shock", fontsize=20)
-plt.tight_layout()
-plt.show()
+# plt.figure(figsize = (25,10))
+# gs1 = gridspec.GridSpec(2, 4)
+# gs1.update(wspace=0.025, hspace=0.2) # set the spacing between axes. 
+# c=0
+# for i in range(8):
+#     ax1 = plt.subplot(gs1[i])
+#     # plt.axis('on')
+#     ax1.plot(girf_complete[multi_index_col[c][1]])
+#     ax1.plot(girf_complete_high[multi_index_col[c][1]], color = 'r')
+#     ax1.fill_between(
+#         np.arange(H+1),
+#         girf_complete[multi_index_col[c][0]],
+#         girf_complete[multi_index_col[c][2]],
+#         alpha = 0.5
+#     )
+#     ax1.fill_between(
+#         np.arange(H+1),
+#         girf_complete_high[multi_index_col[c][0]],
+#         girf_complete_high[multi_index_col[c][2]],
+#         alpha = 0.5, color = 'r'
+#     )
+#     ax1.set_title(y.columns[c], size = 20)
+#     ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=20)
+#     c += 1
+# plt.suptitle(y.columns[shock] + " shock", fontsize=20)
+# plt.tight_layout()
+# plt.show()
