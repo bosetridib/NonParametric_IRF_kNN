@@ -95,7 +95,7 @@ omega = (omega - omega_mean)/omega_std
 histoi = (histoi - omega_mean)/omega_std
 T = omega.shape[0]
 
-knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=T-H, metric='euclidean')
 knn.fit(omega)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -107,10 +107,7 @@ y_f = np.matmul(df.loc[omega.iloc[ind].index].T, weig).to_frame().T
 u = df.loc[omega.iloc[ind].index] - y_f.values.squeeze()
 u_mean = u.mul(weig, axis = 0)
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
-
-# u = y.loc[omega.iloc[ind].index] - y_f.values.squeeze()
-# u_mean = u.mul(weig, axis = 0)
-# sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
+# u.sort_index().plot(subplots = True, layout = (2,4))
 
 # Define the shock
 # shock = 1
