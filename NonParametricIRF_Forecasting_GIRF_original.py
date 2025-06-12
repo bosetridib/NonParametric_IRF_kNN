@@ -110,28 +110,28 @@ for h in range(1,H+1):
     y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f)
 
-omega_hat = pd.DataFrame(index=omega.index, columns=omega.columns)
+# omega_hat = pd.DataFrame(index=omega.index, columns=omega.columns)
 
-for t in omega.index:
-    knn.fit(omega_scaled.drop(t))
-    dist, ind = knn.kneighbors(omega_scaled.loc[t].to_numpy().reshape(1,-1))
-    dist = dist[0,:]; ind = ind[0,:]
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-    omega_hat.loc[t] = np.matmul(omega.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
+# for t in omega.index:
+#     knn.fit(omega_scaled.drop(t))
+#     dist, ind = knn.kneighbors(omega_scaled.loc[t].to_numpy().reshape(1,-1))
+#     dist = dist[0,:]; ind = ind[0,:]
+#     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+#     omega_hat.loc[t] = np.matmul(omega.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
 
-u = omega - omega_hat
+# u = omega - omega_hat
 
-# u = delta_y.loc[omega_scaled.iloc[ind].index] - y_f.values.squeeze()
-# u_mean = u.mul(weig, axis = 0)
-# sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
+u = delta_y.loc[omega_scaled.iloc[ind].index] - y_f.values.squeeze()
+u_mean = u.mul(weig, axis = 0)
+sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 # u.sort_index().plot(subplots = True, layout = (2,4))
 
 # Define the shock
 # shock = 1
 # Cholesky decomposition
-# B_mat = np.transpose(np.linalg.cholesky(sigma_u))
+B_mat = np.transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
-B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
+# B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
 delta = B_mat[shock]
 
 # Estimate y_T_delta
