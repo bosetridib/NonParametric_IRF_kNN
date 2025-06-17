@@ -2,9 +2,36 @@
 from NonParametricIRF_Data import *
 from Functions_Required import *
 from sklearn.neighbors import NearestNeighbors
-from scipy.spatial.distance import euclidean
+import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
+
+y = pd.concat([epu, cpu, macro_data], axis=1)
+df = y.copy()
+df[trend] = np.log(df[trend])
+
+model_var = sm.tsa.VAR(df)
+
+results_var = model_var.fit(6)
+
+irf = results_var.ma_rep(40)
+irfplot(irf*50,df,1)
+
+df_sim = pd.DataFrame(results_var.simulate_var(steps = 387), columns = df.columns)
+model_var = sm.tsa.VAR(df)
+results_var = model_var.fit(6)
+irf = results_var.ma_rep(40)
+irfplot(irf*50,df,1)
+
+dataplot(
+    pd.DataFrame(
+        results_var.simulate_var(steps = 387),
+        columns = df.columns
+    )
+)
+
+
+
 
 ##################################################################################
 ############################## Sensitivity Analysis ##############################
