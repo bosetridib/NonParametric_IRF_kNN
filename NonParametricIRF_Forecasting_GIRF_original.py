@@ -77,7 +77,7 @@ interest = [
     "High EPU - Recession",
     "High EPU - Expansion",
     "Low EPU - Recession",
-    "Low EPU - Expansion"][0]
+    "Low EPU - Expansion"][2]
 (histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,8))
@@ -89,16 +89,16 @@ interest = [
 #     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
 # plt.show()
 
-delta_y = delta_y.dropna()
+# delta_y = delta_y.dropna()
 omega = omega.dropna()
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_mean = omega.mean()
 omega_std = omega.std()
 omega_scaled = (omega - omega_mean)/omega_std
-histoi = omega_scaled.mean()
+histoi = (histoi - omega_mean)/omega_std
 T = omega_scaled.shape[0]
 
-knn = NearestNeighbors(n_neighbors=T-10, metric='euclidean')
+knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
 knn.fit(omega_scaled)
 dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -121,8 +121,9 @@ for h in range(1,H+1):
 
 # u = omega - omega_hat
 
-u = delta_y.loc[omega_scaled.iloc[ind].index] - y_f.values.squeeze()
-u_mean = u.mul(weig, axis = 0)
+u = omega - y_f.loc[0].values.squeeze()
+# u_mean = u.mul(weig, axis = 0)
+u_mean = u.mean()
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
 # u.sort_index().plot(subplots = True, layout = (2,4))
 
