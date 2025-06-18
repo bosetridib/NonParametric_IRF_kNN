@@ -5,7 +5,7 @@ import numpy as np
 
 # Define the irf plotting function
 def irfplot(irf,df,c):
-    fig, ax = plt.subplots(2,4)
+    fig, ax = plt.subplots(2,4, sharey=False, sharex=True)
     k = 0
     for i in range(2):
         for j in range(4):
