@@ -132,7 +132,7 @@ sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.
 # Cholesky decomposition
 B_mat = np.transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
-# B_mat = np.linalg.cholesky(u.cov()*((T-1)/(T-8-1)))
+# B_mat = np.transpose(np.linalg.cholesky(u.cov()*((T-1)/(T-8-1))))
 delta = B_mat[shock]
 
 # Estimate y_T_delta
