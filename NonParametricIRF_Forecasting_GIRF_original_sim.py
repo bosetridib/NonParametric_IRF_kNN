@@ -13,17 +13,17 @@ shock = 1
 
 y_sim = pd.read_csv('sim.csv')
 y_sim = y_sim.iloc[:,1:]
-y_sim.index = cpu.index
+# y_sim.index = cpu.index
 
 df = y_sim.copy()
-df[trend] = np.log(df[trend])
+# df[trend] = np.log(df[trend])
 df = df.dropna()
 # VAR analysis
-model_var = sm.tsa.VAR(y_sim)
-results_var = model_var.fit(6)
+# model_var = sm.tsa.VAR(y_sim)
+# results_var = model_var.fit(6)
 
-irf = results_var.ma_rep(40)
-irfplot(irf*50,df,1)
+# irf = results_var.ma_rep(40)
+# irfplot(irf*50,df,1)
 # irf_cumsum = irf.copy()
 # for k in range(0,8):
 #     irf_cumsum[:,2,k] = irf_cumsum[:,2,k].cumsum()
@@ -35,9 +35,9 @@ irfplot(irf*50,df,1)
 
 delta_y = y_sim.copy()
 
-mod = transformation_logdiff(delta_y[trend])
+# mod = transformation_logdiff(delta_y[trend])
 
-delta_y[trend] = mod.logdiff()
+# delta_y[trend] = mod.logdiff()
 # p=1; pd.concat([delta_y, sm.tsa.tsatools.lagmat(delta_y[['Unemployment_Rate', 'Treasurey3Months']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
 # Forecasting
@@ -59,7 +59,7 @@ histoi = omega.mean()
 
 # delta_y = delta_y.dropna()
 omega = omega.dropna()
-omega = omega.loc[:y_sim.index[-1] - pd.DateOffset(months=H)]
+# omega = omega.loc[:-H]
 omega_mean = omega.mean()
 omega_std = omega.std()
 omega_scaled = (omega - omega_mean)/omega_std
@@ -75,7 +75,7 @@ weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 y_f = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
 # y_f = np.matmul(y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
 for h in range(1,H+1):
-    y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+    y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
 # dataplot(y_f)
 
 # omega_hat = pd.DataFrame(index=omega.index, columns=omega.columns)
@@ -115,10 +115,10 @@ dist = dist[0,:]; ind = ind[0,:]
 weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
 for h in range(1,H+1):
-    y_f_delta.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
+    y_f_delta.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
-girf[trend] = mod.inv_logdiff_girf(girf[trend])
-dataplot(girf*(50/girf.iloc[0,shock]))
+# girf[trend] = mod.inv_logdiff_girf(girf[trend])
+dataplot(girf)
 # dataplot(girf)
