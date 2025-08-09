@@ -15,16 +15,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Function to generate random walk
-def random_walk(T):
-    e_t = np.random.normal(size=T)
+def random_walk(T, scl):
+    e_t = np.random.normal(size=T, scale=scl)
     rw_t = np.zeros(T)
     rw_t[0] = e_t[0]
     for i in range(1,T):
-        rw_t[i] = 0.93*rw_t[i-1] + e_t[i]
+        rw_t[i] = rw_t[i-1] + e_t[i]
     return rw_t
 
 # Function to generate Y_tvp
-def y_tvp(n_obs = 500, n_var = 3, n_lags = 4):
+def y_tvp(n_obs = 200, n_var = 3, n_lags = 4):
+    intercept = 1
     # number of observations, variables, and lags
 
     # Define Y_TVP: we also initialize it with the minimum number
@@ -34,17 +35,17 @@ def y_tvp(n_obs = 500, n_var = 3, n_lags = 4):
         data=[np.random.normal(size=n_var) for _ in range(n_lags)],
         columns=['y'+str(c_num) for c_num in range(1,n_var+1)]
     )
-    
+
     # Define epsilon - the vector of error terms.
     epsilon_sim = np.array([np.random.normal(size=n_obs) for _ in range(n_var)])
 
     # Define B matrix for all coefficients of B_t (slope coefficients)
     # and c_t (intercept). Note that the total number of elements
     # would be n_var*(1 + (n_var*n_lags)).
-    B_mat = np.array([random_walk(n_obs) for _ in range(n_var*(1 + (n_var*n_lags)))])
-    
+    B_mat = np.array([random_walk(n_obs, 0.001) for _ in range(n_var*(1 + (n_var*n_lags)))])
+
     # Define alpha matrix for A_t matrix (shocks)
-    alpha_t = np.array([random_walk(n_obs) for _ in range(np.int64((n_var*(n_var - 1))/2))])
+    alpha_t = np.array([random_walk(n_obs, 0.008) for _ in range(np.int64((n_var*(n_var - 1))/2))])
 
     for t in range(n_obs):
         # We form the matrices/vectors at time t.
@@ -56,7 +57,7 @@ def y_tvp(n_obs = 500, n_var = 3, n_lags = 4):
         # Define X_t' matrix using the Kronecker product.
         X_t = np.kron(
             np.identity(n_var),
-            np.append(1,y_t_lags)
+            np.append(intercept,y_t_lags)
         )
         # Define B_t matrix at time t
         B_t = B_mat[:,t]
@@ -69,12 +70,15 @@ def y_tvp(n_obs = 500, n_var = 3, n_lags = 4):
     y_sim_tvp = y_sim_tvp.iloc[n_lags:].reset_index(drop=True)
     return y_sim_tvp
 
-y_tvp(200,6,8)
+y_tvp()
 
-n_obs = 10
+y_sim_tvp = y_tvp(500,10,6)
+y_sim_tvp.plot(subplots=True);plt.show()
+
+n_obs = 100
 n_var = 3
 n_lags = 4
-# Initialize Y
+
 y_sim_tvp = pd.DataFrame(
     data=[np.random.normal(size=n_var) for _ in range(n_lags)],
     columns=['y'+str(c_num) for c_num in range(1,n_var+1)]
@@ -86,10 +90,10 @@ epsilon_sim = np.array([np.random.normal(size=n_obs) for _ in range(n_var)])
 # Define B matrix for all coefficients of B_t (slope coefficients)
 # and c_t (intercept). Note that the total number of elements
 # would be n_var*(1 + (n_var*n_lags)).
-B_mat = np.array([random_walk(n_obs) for _ in range(n_var*(1 + (n_var*n_lags)))])
+B_mat = np.array([random_walk(n_obs, 0.01) for _ in range(n_var*(1 + (n_var*n_lags)))])
 
 # Define alpha matrix for A_t matrix (shocks)
-alpha_t = np.array([random_walk(n_obs) for _ in range(np.int64((n_var*(n_var - 1))/2))])
+alpha_t = np.array([random_walk(n_obs, 0.08) for _ in range(np.int64((n_var*(n_var - 1))/2))])
 
 for t in range(n_obs):
     # We form the matrices/vectors at time t.
@@ -112,5 +116,4 @@ for t in range(n_obs):
     y_sim_tvp.loc[n_lags + t] = np.matmul(X_t, B_t.T) + np.matmul(np.linalg.inv(A_t), epsilon_sim[:,t])
 # Slice the initialized values out
 y_sim_tvp = y_sim_tvp.iloc[n_lags:].reset_index(drop=True)
-
 y_sim_tvp
