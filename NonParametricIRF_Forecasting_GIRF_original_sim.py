@@ -12,6 +12,7 @@ warnings.filterwarnings('ignore')
 
 import numpy as np
 import pandas as pd
+from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
 
 # Function to generate random walk
@@ -24,8 +25,7 @@ def random_walk(T, scl):
     return rw_t
 
 # Function to generate Y_tvp
-def y_tvp(n_obs = 200, n_var = 3, n_lags = 4):
-    intercept = 1
+def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
     # number of observations, variables, and lags
 
     # Define Y_TVP: we also initialize it with the minimum number
@@ -68,18 +68,106 @@ def y_tvp(n_obs = 200, n_var = 3, n_lags = 4):
         y_sim_tvp.loc[n_lags + t] = np.matmul(X_t, B_t.T) + np.matmul(np.linalg.inv(A_t), epsilon_sim[:,t])
     # Slice the initialized values out
     y_sim_tvp = y_sim_tvp.iloc[n_lags:].reset_index(drop=True)
-    return {'data': y_sim_tvp, 'B_mat': B_mat, 'alpha_t': alpha_t}
+    # Return a dictionary of all elements
+    return {
+        'data': y_sim_tvp,
+        'B_mat': B_mat,
+        'alpha_t': alpha_t,
+        'n_obs': n_obs,
+        'n_var': n_var,
+        'n_lags': n_lags
+    }
 
-n_obs = 400
+def tvp_irf(sim_elements, impulse):
+    # Collect the basic variables.
+    n_obs = sim_elements['n_obs']
+    n_var = sim_elements['n_var']
+    n_lags = sim_elements['n_lags']
+    # Collect the alpha matrix to capture the shocks
+    alpha_t = sim_elements['alpha_t']
+    # Collect the coefficient matrices to capture the shocks
+    B_mat = sim_elements['B_mat']
+
+    # Fix the lower triangular matrix
+    A_t = np.eye(n_var)
+    A_t[np.tril_indices(n_var, k=-1)] = alpha_t[:,n_obs-1]
+
+    # Collect the coefficient matrices to form the companion matrix
+    Phi_mat = B_mat[:,n_obs-1]
+    Phi_mat = Phi_mat.reshape(n_var,(n_var*n_lags)+1)
+    Phi_mat = Phi_mat[:,1:]
+
+    # Companion matrix
+    comp_mat = np.concat((np.eye(n_var*(n_lags-1)),np.zeros((n_var*(n_lags-1),n_var))), axis = 1)
+    comp_mat = np.concat((Phi_mat, comp_mat), axis = 0)
+    
+    J = np.concat((np.eye(n_var),np.zeros((n_var,n_var*(n_lags-1)))), axis = 1)
+
+    Phi_i = [np.matmul(np.matmul(J,np.linalg.matrix_power(comp_mat,_)), J.T) for _ in range(0,40)]
+    Theta = [np.matmul(_,np.linalg.inv(A_t)) for _ in Phi_i]
+
+    return [_[:,impulse] for _ in Theta]
+
+def knn_irf(data, impulse):
+    omega = data.copy()
+    omega_mean = omega.mean()
+    omega_std = omega.std()
+    omega_scaled = (omega - omega_mean)/omega_std
+    omega_scaled = omega_scaled.iloc[:-40]
+    histoi = omega.mean()
+    histoi = (histoi - omega_mean)/omega_std
+    T = omega_scaled.shape[0]
+
+    knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
+    knn.fit(omega_scaled)
+    dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+
+    # Estimate y_T
+    y_f = np.matmul(omega.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
+    # y_f = np.matmul(y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
+    for h in range(1,40+1):
+        y_f.loc[h] = np.matmul(omega.loc[omega_scaled.iloc[ind].index + h].T, weig).values
+    # dataplot(y_f)
+    u = omega - y_f.loc[0].values.squeeze()
+    # u_mean = u.mul(weig, axis = 0)
+    u = u.iloc[:-40]
+    u_mean = u.mean()
+    sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
+    # Cholesky decomposition
+    B_mat = np.transpose(np.linalg.cholesky(sigma_u))
+    # The desired shock
+    # B_mat = np.transpose(np.linalg.cholesky(u.cov()*((T-1)/(T-8-1))))
+    delta = B_mat[impulse]
+
+    # Estimate y_T_delta
+    y_f_delta = pd.DataFrame(columns=y_f.columns)
+    y_f_delta.loc[0] = y_f.loc[0] + delta
+
+    histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
+    # histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-omega.shape[1]]
+
+    dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+
+    for h in range(1,40+1):
+        y_f_delta.loc[h] = np.matmul(omega.loc[omega_scaled.iloc[ind].index + h].T, weig).values
+    # dataplot(y_f_delta)
+
+    girf = y_f_delta - y_f
+    return girf
+
+
+n_obs = 200
 n_var = 3
 n_lags = 4
 
-y_sim_tvp = y_tvp(n_obs,n_var,n_lags)
-data = y_sim_tvp['data']
-# y_sim_tvp_data.plot(subplots=True);plt.show()
-alpha_t = y_sim_tvp['alpha_t']
-B_mat = y_sim_tvp['B_mat']
+impulse = 0
+sim1 = tvp_simulate(n_obs, n_var, n_lags)
+sim1_irf = tvp_irf(sim1, impulse)
+sim1_nn = knn_irf(sim1['data'], impulse)
 
-Phi_mat = B_mat[:,n_obs-1]
-Phi_mat = Phi_mat.reshape(n_var,(n_var*n_lags)+1)
-Phi_mat
+pd.DataFrame(sim1_irf).plot(subplots=True)
+sim1_nn.plot(subplots=True)
