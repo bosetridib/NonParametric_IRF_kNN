@@ -175,22 +175,20 @@ impulse = 0
 bias = []
 
 for n_obs in [_*200 for _ in range(1,6)]:
-    for n_var in range(3,10):
+    for n_var in range(3,11):
         for n_lags in [_*2 for _ in range(1,6)]:
             for _ in range(n_sim+1):
                 sim = tvp_simulate(n_obs, n_var, n_lags)
                 bias.append(tvp_irf(sim, impulse) - knn_irf(sim['data'], impulse))
-                i += 1
                 print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
 #End
 
+bias = [np.absolute(_) for _ in bias]
 
+bias_avg = [sum(bias[(n_sim+1)*5*_:(n_sim+1)*5*(_+1)]) for _ in range(7)]
+bias_avg = [_/255 for _ in bias_avg]
 
-sim1 = tvp_simulate(n_obs, n_var, n_lags)
-sim1_irf = tvp_irf(sim1, impulse)
-sim1_nn = knn_irf(sim1['data'], impulse)
+bias_avg = [_.sum(axis=1) for _ in bias_avg]
 
-sim1_irf.plot(subplots=True)
-sim1_nn.plot(subplots=True)
-
-sim1_irf - sim1_nn
+bias_avg = pd.DataFrame([_ for _ in bias_avg]).T
+bias_avg.plot(subplots=True, layout=(2,4))
