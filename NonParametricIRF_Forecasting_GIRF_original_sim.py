@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
 
 # Function to generate random walk
 def random_walk(T, scl):
@@ -68,6 +70,7 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
         y_sim_tvp.loc[n_lags + t] = np.matmul(X_t, B_t.T) + np.matmul(np.linalg.inv(A_t), epsilon_sim[:,t])
     # Slice the initialized values out
     y_sim_tvp = y_sim_tvp.iloc[n_lags:].reset_index(drop=True)
+    y_sim_tvp.index += 1
     # Return a dictionary of all elements
     return {
         'data': y_sim_tvp,
@@ -103,18 +106,20 @@ def tvp_irf(sim_elements, impulse):
     
     J = np.concat((np.eye(n_var),np.zeros((n_var,n_var*(n_lags-1)))), axis = 1)
 
-    Phi_i = [np.matmul(np.matmul(J,np.linalg.matrix_power(comp_mat,_)), J.T) for _ in range(0,40)]
+    Phi_i = [np.matmul(np.matmul(J,np.linalg.matrix_power(comp_mat,_)), J.T) for _ in range(0,41)]
     Theta = [np.matmul(_,np.linalg.inv(A_t)) for _ in Phi_i]
 
-    return [_[:,impulse] for _ in Theta]
+    irf_tvp = pd.DataFrame([_[:,impulse] for _ in Theta], columns=sim_elements['data'].columns)
+
+    return irf_tvp
 
 def knn_irf(data, impulse):
     omega = data.copy()
     omega_mean = omega.mean()
     omega_std = omega.std()
     omega_scaled = (omega - omega_mean)/omega_std
+    histoi = omega.iloc[-40:].mean()
     omega_scaled = omega_scaled.iloc[:-40]
-    histoi = omega.mean()
     histoi = (histoi - omega_mean)/omega_std
     T = omega_scaled.shape[0]
 
@@ -159,15 +164,33 @@ def knn_irf(data, impulse):
     girf = y_f_delta - y_f
     return girf
 
+# Bgin simulations
+n_sim = 50
 
-n_obs = 200
-n_var = 3
+n_obs = 400
+n_var = 4
 n_lags = 4
-
 impulse = 0
+
+bias = []
+
+for n_obs in [_*200 for _ in range(1,6)]:
+    for n_var in range(3,10):
+        for n_lags in [_*2 for _ in range(1,6)]:
+            for _ in range(n_sim+1):
+                sim = tvp_simulate(n_obs, n_var, n_lags)
+                bias.append(tvp_irf(sim, impulse) - knn_irf(sim['data'], impulse))
+                i += 1
+                print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
+#End
+
+
+
 sim1 = tvp_simulate(n_obs, n_var, n_lags)
 sim1_irf = tvp_irf(sim1, impulse)
 sim1_nn = knn_irf(sim1['data'], impulse)
 
-pd.DataFrame(sim1_irf).plot(subplots=True)
+sim1_irf.plot(subplots=True)
 sim1_nn.plot(subplots=True)
+
+sim1_irf - sim1_nn
