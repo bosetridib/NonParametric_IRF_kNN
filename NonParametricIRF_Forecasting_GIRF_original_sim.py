@@ -165,11 +165,11 @@ def knn_irf(data, impulse):
     return girf
 
 # Bgin simulations
-n_sim = 50
-
 n_obs = 400
 n_var = 4
 n_lags = 4
+
+n_sim = 25
 impulse = 0
 
 bias = []
@@ -177,18 +177,26 @@ bias = []
 for n_obs in [_*200 for _ in range(1,6)]:
     for n_var in range(3,11):
         for n_lags in [_*2 for _ in range(1,6)]:
-            for _ in range(n_sim+1):
+            for _ in range(n_sim):
                 sim = tvp_simulate(n_obs, n_var, n_lags)
                 bias.append(tvp_irf(sim, impulse) - knn_irf(sim['data'], impulse))
                 print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
 #End
 
-bias = [np.absolute(_) for _ in bias]
+bias_avg = [np.absolute(_).mean(axis=1) for _ in bias]
+bias_avg = sum(bias_avg)/len(bias_avg)
 
-bias_avg = [sum(bias[(n_sim+1)*5*_:(n_sim+1)*5*(_+1)]) for _ in range(7)]
-bias_avg = [_/255 for _ in bias_avg]
+rmse_avg = [(_**2).mean(axis=1) for _ in bias]
+rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
 
-bias_avg = [_.sum(axis=1) for _ in bias_avg]
+import pickle
 
-bias_avg = pd.DataFrame([_ for _ in bias_avg]).T
-bias_avg.plot(subplots=True, layout=(2,4))
+# obj0, obj1, obj2 are created here...
+
+# Saving the objects:
+with open('objs.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+    pickle.dump(bias, f)
+
+# Getting back the objects:
+with open('objs.pkl') as f:  # Python 3: open(..., 'rb')
+    bias = pickle.load(f)
