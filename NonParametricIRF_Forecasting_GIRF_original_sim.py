@@ -189,24 +189,37 @@ bias_avg = sum(bias_avg)/len(bias_avg)
 rmse_avg = [(_**2).mean(axis=1) for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
 
-bias_avg_T = [bias[(_*1040):(_+1)*1040] for _ in range(5)]
+# n_sim * 5 lags * 8 vars = 1040
+bias_avg_T = [bias[(_*(1040)):(_+1)*1040] for _ in range(5)]
 bias_avg_T = [[np.absolute(b).mean(axis=1) for b in _] for _ in bias_avg_T]
 bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
 bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,6)]).T
-bias_avg_T.plot(subplots=True)
+bias_avg_T.plot()
 
 rmse_avg_T = [bias[(_*1040):(_+1)*1040] for _ in range(5)]
 rmse_avg_T = [[(b**2).mean(axis=1) for b in _] for _ in rmse_avg_T]
 rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
 rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,6)]).T
-rmse_avg_T.plot(subplots=True)
+rmse_avg_T.plot()
 
-# bias_avg_var
+# n_sim * 5 lags = 130
+bias_avg_var = [[_ for _ in bias if len(_.columns) == count] for count in range(3,11)]
+bias_avg_var = [[np.absolute(b).mean(axis=1) for b in _] for _ in bias_avg_var]
+bias_avg_var = [sum(_)/len(_) for _ in bias_avg_var]
+bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(3,11)]).T
+bias_avg_var.plot()
+
+rmse_avg_var = [[_ for _ in bias if len(_.columns) == count] for count in range(3,11)]
+rmse_avg_var = [[(b**2).mean(axis=1) for b in _] for _ in rmse_avg_var]
+rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
+rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(3,11)]).T
+rmse_avg_var.plot()
 
 import pickle
 # Saving the objects:
-with open('objs.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+with open('objs.pkl', 'wb') as f:
     pickle.dump(bias, f)
 # Getting back the objects:
-with open('objs.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
+import pickle
+with open('objs.pkl', 'rb') as f:
     bias = pickle.load(f)
