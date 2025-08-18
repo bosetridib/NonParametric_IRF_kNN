@@ -185,9 +185,13 @@ for n_obs in [_*200 for _ in range(1,6)]:
 
 bias_avg = [np.absolute(_).mean(axis=1) for _ in bias]
 bias_avg = sum(bias_avg)/len(bias_avg)
+bias_avg = pd.DataFrame([_ for _ in bias_avg], index=[_ for _ in range(0,41)])
+bias_avg.plot()
 
 rmse_avg = [(_**2).mean(axis=1) for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
+rmse_avg = pd.DataFrame([_ for _ in rmse_avg], index=[_ for _ in range(0,41)])
+rmse_avg.plot()
 
 # n_sim * 5 lags * 8 vars = 1040
 bias_avg_T = [bias[(_*(1040)):(_+1)*1040] for _ in range(5)]
