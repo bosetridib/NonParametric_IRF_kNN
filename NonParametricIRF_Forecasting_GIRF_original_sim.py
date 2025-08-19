@@ -169,7 +169,7 @@ n_obs = 400
 n_var = 4
 n_lags = 4
 
-n_sim = 25
+n_sim = 500
 impulse = 0
 
 bias = []
@@ -220,7 +220,7 @@ rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(3
 rmse_avg_var.plot()
 
 import pickle
-# Saving the objects:
+# Saving objects:
 with open('objs.pkl', 'wb') as f:
     pickle.dump(bias, f)
 # Getting back the objects:
