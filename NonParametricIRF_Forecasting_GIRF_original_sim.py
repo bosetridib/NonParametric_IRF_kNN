@@ -169,17 +169,17 @@ def knn_irf(data, impulse):
 # n_var = 4
 # n_lags = 4
 
-n_sim = 100
+n_sim = 25
 impulse = 0
 
 bias = []
 
 for n_obs in [_*200 for _ in range(1,6)]:
     for n_var in range(3,11):
-        for n_lags in [_*2 for _ in range(1,6)]:
+        for n_lags in [_*2 for _ in range(1,7)]:
             for _ in range(n_sim):
                 sim = tvp_simulate(n_obs, n_var, n_lags)
-                bias.append(tvp_irf(sim, impulse) - knn_irf(sim['data'], impulse))
+                bias.append(knn_irf(sim['data'], impulse))
                 print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
 #End
 
