@@ -101,10 +101,10 @@ def tvp_irf(sim_elements, impulse):
     Phi_mat = Phi_mat[:,1:]
 
     # Companion matrix
-    comp_mat = np.concat((np.eye(n_var*(n_lags-1)),np.zeros((n_var*(n_lags-1),n_var))), axis = 1)
-    comp_mat = np.concat((Phi_mat, comp_mat), axis = 0)
+    comp_mat = np.concatenate((np.eye(n_var*(n_lags-1)),np.zeros((n_var*(n_lags-1),n_var))), axis = 1)
+    comp_mat = np.concatenate((Phi_mat, comp_mat), axis = 0)
     
-    J = np.concat((np.eye(n_var),np.zeros((n_var,n_var*(n_lags-1)))), axis = 1)
+    J = np.concatenate((np.eye(n_var),np.zeros((n_var,n_var*(n_lags-1)))), axis = 1)
 
     Phi_i = [np.matmul(np.matmul(J,np.linalg.matrix_power(comp_mat,_)), J.T) for _ in range(0,41)]
     Theta = [np.matmul(_,np.linalg.inv(A_t)) for _ in Phi_i]
@@ -169,7 +169,7 @@ n_obs = 400
 n_var = 4
 n_lags = 4
 
-n_sim = 500
+n_sim = 100
 impulse = 0
 
 bias = []
@@ -193,14 +193,15 @@ rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
 rmse_avg = pd.DataFrame([_ for _ in rmse_avg], index=[_ for _ in range(0,41)])
 rmse_avg.plot()
 
+
 # n_sim * 5 lags * 8 vars = 1040
-bias_avg_T = [bias[(_*(1040)):(_+1)*1040] for _ in range(5)]
+bias_avg_T = [bias[(_*(n_sim*n_var*8)):(_+1)*(n_sim*n_var*8)] for _ in range(5)]
 bias_avg_T = [[np.absolute(b).mean(axis=1) for b in _] for _ in bias_avg_T]
 bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
 bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,6)]).T
 bias_avg_T.plot()
 
-rmse_avg_T = [bias[(_*1040):(_+1)*1040] for _ in range(5)]
+rmse_avg_T = [bias[(_*(n_sim*n_var*8)):(_+1)*(n_sim*n_var*8)] for _ in range(5)]
 rmse_avg_T = [[(b**2).mean(axis=1) for b in _] for _ in rmse_avg_T]
 rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
 rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,6)]).T
