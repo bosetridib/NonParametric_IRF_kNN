@@ -169,7 +169,7 @@ def knn_irf(data, impulse):
 # n_var = 4
 # n_lags = 4
 
-n_sim = 25
+n_sim = 50
 impulse = 0
 
 bias = []
