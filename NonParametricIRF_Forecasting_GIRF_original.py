@@ -164,7 +164,7 @@ girf[trend] = mod.inv_logdiff_girf(girf[trend])
 # plt.show()
 
 # Confidence Intervals
-R=50
+R=500
 sim_girf = []
 
 # Perform simulations
