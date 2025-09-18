@@ -78,7 +78,7 @@ interest = [
     "High EPU - Expansion",
     "Low EPU - Recession",
     "Low EPU - Expansion"][2]
-(histoi, omega) = histoiOmega(interest)
+(histoi, omega) = histoiOmega(interest+"1231")
 
 # plt.figure(figsize = (25,8))
 # # plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
