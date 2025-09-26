@@ -164,7 +164,7 @@ girf[trend] = mod.inv_logdiff_girf(girf[trend])
 # plt.show()
 
 # Confidence Intervals
-R=500
+R=50
 sim_girf = []
 
 # Perform simulations
@@ -185,7 +185,7 @@ for r in range(0,R):
     y_f_delta_resamp = pd.DataFrame(columns=y_f_resamp.columns)
     y_f_delta_resamp.loc[0] = y_f_resamp.loc[0] + delta
 
-    histoi_delta_resamp = (y_f_resamp.loc[0] - omega_scaled_resamp_mean)/omega_scaled_resamp_sd
+    histoi_delta_resamp = (y_f_resamp.loc[0] + delta - omega_scaled_resamp_mean)/omega_scaled_resamp_sd
     histoi_delta_resamp = pd.concat([histoi_delta, histoi], axis=0)[:-delta_y.shape[1]]
     dist, ind = knn.kneighbors(histoi_delta_resamp.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
