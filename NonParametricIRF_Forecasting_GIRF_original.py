@@ -77,8 +77,8 @@ interest = [
     "High EPU - Recession",
     "High EPU - Expansion",
     "Low EPU - Recession",
-    "Low EPU - Expansion"][2]
-(histoi, omega) = histoiOmega(interest+"1231")
+    "Low EPU - Expansion"][0]
+(histoi, omega) = histoiOmega(interest)
 
 # plt.figure(figsize = (25,8))
 # # plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
@@ -90,7 +90,8 @@ interest = [
 # plt.show()
 
 # delta_y = delta_y.dropna()
-omega = omega.dropna()
+omega = delta_y.dropna()
+# omega = omega.dropna()
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_mean = omega.mean()
 omega_std = omega.std()
