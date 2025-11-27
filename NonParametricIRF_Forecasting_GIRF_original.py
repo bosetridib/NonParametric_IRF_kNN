@@ -243,7 +243,7 @@ import matplotlib.gridspec as gridspec
 # plt.tight_layout()
 # plt.show()
 # , color = 'r'
-plt.figure(figsize = (40,10))
+plt.figure(figsize = (3.54,3.54))
 gs1 = gridspec.GridSpec(2, 4)
 gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
 c=0
@@ -257,13 +257,13 @@ for i in range(8):
         girf_complete[multi_index_col[c][2]],
         color = 'lightgrey'
     )
-    ax1.set_title(y.columns[c], size = 40)
-    ax1.tick_params(axis="y",direction="in", pad=-20, labelsize=40)
-    ax1.tick_params(axis="x",direction="in", pad=-20, labelsize=40)
+    ax1.set_title(y.columns[c], size = 20)
+    ax1.tick_params(axis="y",direction="in", pad=-10, labelsize=20)
+    ax1.tick_params(axis="x",direction="in", pad=-10, labelsize=20)
     c += 1
 plt.suptitle(
     y.columns[shock] + " shock in " + interest + " periods",
-    fontsize=40
+    fontsize=10
 )
 plt.tight_layout()
 plt.show()
