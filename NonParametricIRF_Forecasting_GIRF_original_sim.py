@@ -81,7 +81,7 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
         'n_var': n_var,
         'n_lags': n_lags
     }
-dataplot(tvp_simulate()['data'])
+
 
 def tvp_irf(sim_elements, impulse):
     # Collect the basic variables.
