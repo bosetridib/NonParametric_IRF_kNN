@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore')
 # Function to generate random walk
 def random_walk(T, scl):
     #e_t = np.random.normal(size=T, scale=scl)
-    e_t = np.random.normal(size=T, scale=scl**0.5)
+    e_t = np.random.normal(size=T, scale=scl)
     rw_t = np.zeros(T)
     rw_t[0] = e_t[0]
     for i in range(1,T):
@@ -45,10 +45,10 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
     # Define B matrix for all coefficients of B_t (slope coefficients)
     # and c_t (intercept). Note that the total number of elements
     # would be n_var*(1 + (n_var*n_lags)).
-    B_mat = np.array([random_walk(n_obs, 0.05/100) for _ in range(n_var*(1 + (n_var*n_lags)))])
+    B_mat = np.array([random_walk(n_obs, (0.05/100)**0.5) for _ in range(n_var*(1 + (n_var*n_lags)))])
 
     # Define alpha matrix for A_t matrix (shocks)
-    alpha_t = np.array([random_walk(n_obs, 0.5/100) for _ in range(np.int64((n_var*(n_var - 1))/2))])
+    alpha_t = np.array([random_walk(n_obs, (0.5/100)**0.5) for _ in range(np.int64((n_var*(n_var - 1))/2))])
 
     for t in range(n_obs):
         # We form the matrices/vectors at time t.
@@ -72,6 +72,13 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
     # Slice the initialized values out
     y_sim_tvp = y_sim_tvp.iloc[n_lags:].reset_index(drop=True)
     y_sim_tvp.index += 1
+    # Check the stability condition
+    stable_counter = []
+    for t in range(n_obs):
+        Phi_mat = B_mat[:,t].reshape(3,(3*4)+1)[:,1:]
+        comp_mat = np.concatenate((Phi_mat, np.concatenate((np.eye(n_var*(n_lags-1)),np.zeros((n_var*(n_lags-1),n_var))), axis = 1)), axis = 0)
+        stable_counter.append(np.abs(np.linalg.eigvals(comp_mat)).max() < 1)
+    
     # Return a dictionary of all elements
     return {
         'data': y_sim_tvp,
@@ -79,9 +86,15 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
         'alpha_t': alpha_t,
         'n_obs': n_obs,
         'n_var': n_var,
-        'n_lags': n_lags
+        'n_lags': n_lags,
+        'stable_counter': sum(stable_counter)
     }
 
+count = 0
+for _ in range(1000):
+    if tvp_simulate()['stable_counter'] == 0:
+        count += 1
+count
 
 def tvp_irf(sim_elements, impulse):
     # Collect the basic variables.
