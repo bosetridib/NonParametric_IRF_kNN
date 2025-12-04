@@ -45,8 +45,40 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
     # Define B matrix for all coefficients of B_t (slope coefficients)
     # and c_t (intercept). Note that the total number of elements
     # would be n_var*(1 + (n_var*n_lags)).
-    B_mat = np.array([random_walk(n_obs, (0.05/100)**0.5) for _ in range(n_var*(1 + (n_var*n_lags)))])
-
+    # B_mat = np.array([random_walk(n_obs, (0.05/100)**0.5) for _ in range(n_var*(1 + (n_var*n_lags)))])
+    B_mat = np.array([np.zeros(n_obs) for _ in range(n_var*(1 + (n_var*n_lags)))])
+    # Fill the B_mat_0 with some initial values
+    B_mat[:,0] = np.random.randn(n_var*(1 + (n_var*n_lags)))*((0.05/100)**0.5)
+    # Also, check the stability condition by forming the companion matrix at t=0
+    # stuck counter: if the eigenvalues do not satisfy the stability condition
+    # for too long, we return 'stuck' to avoid infinite loop.
+    stuck = 0
+    # No need to understand the following if loop, just see the subsequent codes.
+    if max(
+        abs(np.linalg.eigvals(np.concatenate(
+            (B_mat[:,0].reshape(n_var,(n_var*n_lags)+1)[:,1:],
+             np.concatenate((
+                 np.eye(n_var*(n_lags-1)),
+                 np.zeros((n_var*(n_lags-1),n_var))
+             ), axis = 1)), axis = 0
+        )))
+    ) > 0.95 : return 'stuck'
+    # For the subsequent periods, we confirm that the eienvalues of B's are less than 1
+    t = 1
+    while t < n_obs:
+        B_mat[:,t] = B_mat[:,t-1] + np.random.randn(n_var*(1 + (n_var*n_lags)))*((0.05/100)**0.5)
+        # Check the stability condition by forming the companion matrix
+        Phi_mat = B_mat[:,t].reshape(n_var,(n_var*n_lags)+1)
+        # remove intercept
+        Phi_mat = Phi_mat[:,1:]
+        # Companion matrix
+        comp_mat = np.concatenate((np.eye(n_var*(n_lags-1)),np.zeros((n_var*(n_lags-1),n_var))), axis = 1)
+        comp_mat = np.concatenate((Phi_mat, comp_mat), axis = 0)
+        # Check eigenvalues
+        if max(abs(np.linalg.eigvals(comp_mat))) > 0.95: t -= 1
+        t += 1
+        stuck += 1
+        if stuck > 10000: return 'stuck'
     # Define alpha matrix for A_t matrix (shocks)
     alpha_t = np.array([random_walk(n_obs, (0.5/100)**0.5) for _ in range(np.int64((n_var*(n_var - 1))/2))])
 
@@ -73,12 +105,6 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
     y_sim_tvp = y_sim_tvp.iloc[n_lags:].reset_index(drop=True)
     y_sim_tvp.index += 1
     # Check the stability condition
-    stable_counter = []
-    for t in range(n_obs):
-        Phi_mat = B_mat[:,t].reshape(3,(3*4)+1)[:,1:]
-        comp_mat = np.concatenate((Phi_mat, np.concatenate((np.eye(n_var*(n_lags-1)),np.zeros((n_var*(n_lags-1),n_var))), axis = 1)), axis = 0)
-        stable_counter.append(np.abs(np.linalg.eigvals(comp_mat)).max() < 1)
-    
     # Return a dictionary of all elements
     return {
         'data': y_sim_tvp,
@@ -86,17 +112,17 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
         'alpha_t': alpha_t,
         'n_obs': n_obs,
         'n_var': n_var,
-        'n_lags': n_lags,
-        'stable_counter': sum(stable_counter)
+        'n_lags': n_lags
     }
 
-count = 0
-for _ in range(1000):
-    if tvp_simulate()['stable_counter'] == 0:
-        count += 1
-count
+test_sim = tvp_simulate(200, 4, 4)
+# np.mean(test_sim['B_mat'][2,:])
+#plt.plot(test_sim['B_mat'][7,:]);plt.show()
+#dataplot(test_sim['data'])
 
-def tvp_irf(sim_elements, impulse):
+def tvp_irf(sim_elements, impulse = 0):
+    if sim_elements == 'stuck':
+        return 'stuck'
     # Collect the basic variables.
     n_obs = sim_elements['n_obs']
     n_var = sim_elements['n_var']
@@ -121,20 +147,22 @@ def tvp_irf(sim_elements, impulse):
     
     J = np.concatenate((np.eye(n_var),np.zeros((n_var,n_var*(n_lags-1)))), axis = 1)
 
-    Phi_i = [np.matmul(np.matmul(J,np.linalg.matrix_power(comp_mat,_)), J.T) for _ in range(0,41)]
+    Phi_i = [np.matmul(np.matmul(J,np.linalg.matrix_power(comp_mat,_)), J.T) for _ in range(0,11)]
     Theta = [np.matmul(_,np.linalg.inv(A_t)) for _ in Phi_i]
 
     irf_tvp = pd.DataFrame([_[:,impulse] for _ in Theta], columns=sim_elements['data'].columns)
 
     return irf_tvp
 
-def knn_irf(data, impulse):
-    omega = data.copy()
+def knn_irf(sim_elements, impulse=0):
+    if sim_elements == 'stuck':
+        return 'stuck'
+    omega = sim_elements['data'].copy()
     omega_mean = omega.mean()
     omega_std = omega.std()
     omega_scaled = (omega - omega_mean)/omega_std
-    histoi = omega.iloc[-40:].mean()
-    omega_scaled = omega_scaled.iloc[:-40]
+    histoi = omega.iloc[-10:].mean()
+    omega_scaled = omega_scaled.iloc[:-10]
     histoi = (histoi - omega_mean)/omega_std
     T = omega_scaled.shape[0]
 
@@ -147,12 +175,13 @@ def knn_irf(data, impulse):
     # Estimate y_T
     y_f = np.matmul(omega.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
     # y_f = np.matmul(y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
-    for h in range(1,40+1):
+    for h in range(1,10+1):
         y_f.loc[h] = np.matmul(omega.loc[omega_scaled.iloc[ind].index + h].T, weig).values
     # dataplot(y_f)
     u = omega - y_f.loc[0].values.squeeze()
+    u = u.iloc[:T]
     # u_mean = u.mul(weig, axis = 0)
-    u = u.iloc[:-40]
+    ################IMPORTANT CORRECTION HERE##################
     u_mean = u.mean()
     sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
     # Cholesky decomposition
@@ -172,12 +201,15 @@ def knn_irf(data, impulse):
     dist = dist[0,:]; ind = ind[0,:]
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
-    for h in range(1,40+1):
+    for h in range(1,10+1):
         y_f_delta.loc[h] = np.matmul(omega.loc[omega_scaled.iloc[ind].index + h].T, weig).values
     # dataplot(y_f_delta)
 
     girf = y_f_delta - y_f
     return girf
+
+sim_T = tvp_simulate()
+(tvp_irf(sim_T) - knn_irf(sim_T)).mean()
 
 # Bgin simulations
 # n_obs = 400
@@ -190,8 +222,8 @@ impulse = 0
 bias = []
 
 for n_obs in [_*200 for _ in range(1,6)]:
-    for n_var in range(3,11):
-        for n_lags in [_*2 for _ in range(1,7)]:
+    for n_var in range(3,4):
+        for n_lags in [_*2 for _ in range(1,4)]:
             for _ in range(n_sim):
                 sim = tvp_simulate(n_obs, n_var, n_lags)
                 bias.append(knn_irf(sim['data'], impulse))
