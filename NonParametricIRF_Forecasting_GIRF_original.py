@@ -22,30 +22,6 @@ delta_y[trend] = mod.logdiff()
 H = 40
 
 def histoiOmega(macro_condition):
-    # if macro_condition == "great_recession":
-    #     histoi = delta_y.loc['2008-11-01':'2009-10-01'].mean()
-    #     omega = pd.concat([delta_y.loc[:'2008-10-01'], delta_y.loc['2009-11-01':]])
-    # elif macro_condition == "recession":
-    #     omega = delta_y.loc[y.loc[y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "expansion":
-    #     omega = delta_y.loc[y.loc[y['Unemployment_Rate'] < y['Unemployment_Rate'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "inflationary":
-    #     omega = delta_y.loc[y.loc[delta_y['Growth_PriceIndex_PCE']>0.0025].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "LowCPU":
-    #     omega = delta_y.loc[y.loc[y['cpu_index'] < y['cpu_index'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "HighCPU":
-    #     omega = delta_y.loc[y.loc[y['cpu_index'] >= y['cpu_index'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "LowEPU":
-    #     omega = delta_y.loc[y.loc[y['epu_index'] < y['epu_index'].mean()].index]
-    #     histoi = omega.mean()
-    # elif macro_condition == "HighEPU":
-    #     omega = delta_y.loc[y.loc[y['epu_index'] >= y['epu_index'].mean()].index]
-    #     histoi = omega.mean()
     if macro_condition == "High EPU - Recession":
         omega = delta_y.loc[y.loc[
             (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
@@ -75,28 +51,16 @@ def histoiOmega(macro_condition):
 
 interest = [
     "High EPU - Recession",
-    "High EPU - Expansion",
-    "Low EPU - Recession",
     "Low EPU - Expansion"][0]
 (histoi, omega) = histoiOmega(interest)
 
-# plt.figure(figsize = (25,8))
-# # plt.plot(y[['epu_index']], color = 'black', linewidth = 2)
-# plt.plot(y[['Unemployment_Rate']], color = 'black', linewidth = 2)
-# plt.xticks(fontsize = 40)
-# plt.yticks(fontsize = 40)
-# for i in omega.index:
-#     plt.axvspan(i, i+pd.DateOffset(months=1), color="silver")
-# plt.show()
-
-# delta_y = delta_y.dropna()
 omega = delta_y.dropna()
-# omega = omega.dropna()
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_mean = omega.mean()
 omega_std = omega.std()
 omega_scaled = (omega - omega_mean)/omega_std
 histoi = (histoi - omega_mean)/omega_std
+# The number of observations considered are T-H
 T = omega_scaled.shape[0]
 
 knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
