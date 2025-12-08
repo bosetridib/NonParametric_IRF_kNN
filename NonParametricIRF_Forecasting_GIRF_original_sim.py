@@ -219,23 +219,22 @@ dataplot(tvp_irf(sim_T) - knn_irf(sim_T))
 # Bgin simulations
 
 n_sim = 50
-impulse = 0
 
 bias = []
 
 for n_obs in [_*200 for _ in range(1,6)]:
     for n_var in range(2,4):
-        for n_lags in [_*2 for _ in range(1,4)]:
+        for n_lags in range(1,5):
             for _ in range(n_sim):
                 sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
-                bias.append(knn_irf(sim['data'], impulse).T - tvp_irf(sim).T)
+                bias.append(knn_irf(sim).T - tvp_irf(sim).T)
                 print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
 #End
 
 bias_avg = [np.absolute(_).mean(axis=1) for _ in bias]
 bias_avg = sum(bias_avg)/len(bias_avg)
-bias_avg = pd.DataFrame([_ for _ in bias_avg], index=[_ for _ in range(0,41)])
-bias_avg.plot()
+bias_avg = pd.DataFrame([_ for _ in bias_avg], index=[_ for _ in range(0,11)])
+bias_avg.plot(); plt.show()
 
 rmse_avg = [(_**2).mean(axis=1) for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
