@@ -222,24 +222,40 @@ n_sim = 50
 
 bias = []
 
-for n_obs in [_*200 for _ in range(1,6)]:
-    for n_var in range(2,4):
+for n_var in range(2,5):
+    for n_obs in [_*200 for _ in range(1,6)]:
         for n_lags in range(1,5):
-            for _ in range(n_sim):
+            counter = 0
+            while counter < n_sim:
                 sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
-                bias.append(knn_irf(sim).T - tvp_irf(sim).T)
-                print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
+                if sim == 'stuck':
+                    counter -= 1
+                else:
+                    try:
+                        bias.append(knn_irf(sim).T - tvp_irf(sim).T)
+                    except:
+                        counter -= 1
+                        pass
+                print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(counter))
+                counter += 1
 #End
 
-bias_avg = [np.absolute(_).mean(axis=1) for _ in bias]
+import pickle
+# Saving objects:
+with open('objs.pkl', 'wb') as f:
+    pickle.dump(bias, f)
+# Getting back the objects:
+import pickle
+with open('objs.pkl', 'rb') as f:
+    bias = pickle.load(f)
+
+bias_avg = [np.absolute(_).mean() for _ in bias]
 bias_avg = sum(bias_avg)/len(bias_avg)
-bias_avg = pd.DataFrame([_ for _ in bias_avg], index=[_ for _ in range(0,11)])
 bias_avg.plot(); plt.show()
 
-rmse_avg = [(_**2).mean(axis=1) for _ in bias]
+rmse_avg = [np.absolute(_).mean()**2 for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
-rmse_avg = pd.DataFrame([_ for _ in rmse_avg], index=[_ for _ in range(0,41)])
-rmse_avg.plot()
+rmse_avg.plot(); plt.show()
 
 
 # n_sim * 6 lags * 8 vars = 1040
@@ -268,11 +284,100 @@ rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
 rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(3,11)]).T
 rmse_avg_var.plot();plt.show()
 
+
+
+
+def knn_irf_1(sim_elements, impulse=0):
+    if sim_elements == 'stuck':
+        return 'stuck'
+    delta_y = sim_elements['data'].copy()
+    n_var = sim_elements['n_var']
+    omega = delta_y.copy()
+    omega = omega.dropna()
+
+    omega_mean = omega.mean()
+    omega_std = omega.std()
+    omega_scaled = (omega - omega_mean)/omega_std
+    histoi = omega.iloc[-10:].mean()
+    omega_scaled = omega_scaled.iloc[:-10]
+    histoi = (histoi - omega_mean)/omega_std
+    T = omega_scaled.shape[0]
+
+    knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
+    knn.fit(omega_scaled)
+    dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+
+    # Estimate y_T
+    y_f = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
+    # y_f = np.matmul(y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
+    for h in range(1,10+1):
+        y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
+    # dataplot(y_f)
+    u = delta_y - y_f.loc[0].values.squeeze()
+    u = u.iloc[:T]
+    # u_mean = u.mul(weig, axis = 0)
+    ################IMPORTANT CORRECTION HERE##################
+    u_mean = u.mean()
+    sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
+    # Cholesky decomposition
+    B_mat = np.transpose(np.linalg.cholesky(sigma_u))
+    # The desired shock
+    # B_mat = np.transpose(np.linalg.cholesky(u.cov()*((T-1)/(T-8-1))))
+    delta = B_mat[impulse]
+
+    # Estimate y_T_delta
+    y_f_delta = pd.DataFrame(columns=y_f.columns)
+    y_f_delta.loc[0] = y_f.loc[0] + delta
+
+    histoi_delta = (y_f.iloc[0] + delta - omega_mean)/omega_std
+
+    dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
+    dist = dist[0,:]; ind = ind[0,:]
+    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
+
+    for h in range(1,10+1):
+        y_f_delta.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
+    # dataplot(y_f_delta)
+
+    girf = y_f_delta - y_f
+    return girf
+
+
+n_sim = 50
+bias_1 = []
+
+for n_var in range(2,5):
+    for n_obs in [_*200 for _ in range(1,6)]:
+        for n_lags in range(1,5):
+            counter = 0
+            while counter < n_sim:
+                sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
+                if sim == 'stuck':
+                    counter -= 1
+                else:
+                    try:
+                        bias_1.append(knn_irf_1(sim).T - tvp_irf(sim).T)
+                    except:
+                        counter -= 1
+                        pass
+                print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(counter))
+                counter += 1
+#End
+
+
 import pickle
 # Saving objects:
-with open('objs.pkl', 'wb') as f:
-    pickle.dump(bias, f)
+with open('objs_1.pkl', 'wb') as f:
+    pickle.dump(bias_1, f)
 # Getting back the objects:
 import pickle
-with open('objs.pkl', 'rb') as f:
-    bias = pickle.load(f)
+with open('objs_1.pkl', 'rb') as f:
+    bias_1 = pickle.load(f)
+# End of code
+
+bias_avg = [np.absolute(_).mean() for _ in bias_1]
+sum(bias_avg)
+bias_avg = sum([_.fillna(0) for _ in bias_avg])/len(bias_avg)
+bias_avg[1:].plot(); plt.show()
