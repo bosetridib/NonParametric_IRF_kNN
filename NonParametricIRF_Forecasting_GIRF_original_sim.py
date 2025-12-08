@@ -117,8 +117,8 @@ def tvp_simulate(n_obs = 200, n_var = 3, n_lags = 4, intercept = 1):
 
 test_sim = tvp_simulate(200, 4, 4)
 # np.mean(test_sim['B_mat'][2,:])
-#plt.plot(test_sim['B_mat'][7,:]);plt.show()
-#dataplot(test_sim['data'])
+# plt.plot(test_sim['B_mat'][7,:]);plt.show()
+# dataplot(test_sim['data'])
 
 def tvp_irf(sim_elements, impulse = 0):
     if sim_elements == 'stuck':
@@ -157,7 +157,12 @@ def tvp_irf(sim_elements, impulse = 0):
 def knn_irf(sim_elements, impulse=0):
     if sim_elements == 'stuck':
         return 'stuck'
-    omega = sim_elements['data'].copy()
+    delta_y = sim_elements['data'].copy()
+    n_lags = sim_elements['n_lags']
+    n_var = sim_elements['n_var']
+    omega = pd.concat([delta_y, sm.tsa.tsatools.lagmat(delta_y, maxlag=n_lags, use_pandas=True).iloc[n_lags:]], axis = 1)
+    omega = omega.dropna()
+
     omega_mean = omega.mean()
     omega_std = omega.std()
     omega_scaled = (omega - omega_mean)/omega_std
@@ -173,12 +178,12 @@ def knn_irf(sim_elements, impulse=0):
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
     # Estimate y_T
-    y_f = np.matmul(omega.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
+    y_f = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
     # y_f = np.matmul(y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
     for h in range(1,10+1):
-        y_f.loc[h] = np.matmul(omega.loc[omega_scaled.iloc[ind].index + h].T, weig).values
+        y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
     # dataplot(y_f)
-    u = omega - y_f.loc[0].values.squeeze()
+    u = delta_y - y_f.loc[0].values.squeeze()
     u = u.iloc[:T]
     # u_mean = u.mul(weig, axis = 0)
     ################IMPORTANT CORRECTION HERE##################
@@ -194,22 +199,22 @@ def knn_irf(sim_elements, impulse=0):
     y_f_delta = pd.DataFrame(columns=y_f.columns)
     y_f_delta.loc[0] = y_f.loc[0] + delta
 
-    histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
-    # histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-omega.shape[1]]
+    histoi_delta = (y_f.iloc[0] + delta - omega_mean[:n_var])/omega_std[:n_var]
+    histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-n_var]
 
     dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
 
     for h in range(1,10+1):
-        y_f_delta.loc[h] = np.matmul(omega.loc[omega_scaled.iloc[ind].index + h].T, weig).values
+        y_f_delta.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
     # dataplot(y_f_delta)
 
     girf = y_f_delta - y_f
     return girf
 
-sim_T = tvp_simulate()
-(tvp_irf(sim_T) - knn_irf(sim_T)).mean()
+sim_T = tvp_simulate(1000, 4, 1)
+dataplot(tvp_irf(sim_T) - knn_irf(sim_T))
 
 # Bgin simulations
 
@@ -222,8 +227,8 @@ for n_obs in [_*200 for _ in range(1,6)]:
     for n_var in range(2,4):
         for n_lags in [_*2 for _ in range(1,4)]:
             for _ in range(n_sim):
-                sim = tvp_simulate(n_obs, n_var, n_lags)
-                bias.append(knn_irf(sim['data'], impulse) - tvp_irf(sim))
+                sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
+                bias.append(knn_irf(sim['data'], impulse).T - tvp_irf(sim).T)
                 print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(_))
 #End
 
