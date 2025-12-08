@@ -222,8 +222,8 @@ n_sim = 50
 
 bias = []
 
-for n_var in range(2,5):
-    for n_obs in [_*200 for _ in range(1,6)]:
+for n_obs in [_*200 for _ in range(1,6)]:
+    for n_var in range(2,5):
         for n_lags in range(1,5):
             counter = 0
             while counter < n_sim:
@@ -233,6 +233,9 @@ for n_var in range(2,5):
                 else:
                     try:
                         bias.append(knn_irf(sim).T - tvp_irf(sim).T)
+                        if bias[-1].isnull().values.any():
+                            bias.pop()
+                            counter -= 1
                     except:
                         counter -= 1
                         pass
@@ -244,6 +247,7 @@ import pickle
 # Saving objects:
 with open('objs.pkl', 'wb') as f:
     pickle.dump(bias, f)
+
 # Getting back the objects:
 import pickle
 with open('objs.pkl', 'rb') as f:
@@ -257,33 +261,34 @@ rmse_avg = [np.absolute(_).mean()**2 for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
 rmse_avg.plot(); plt.show()
 
-
-# n_sim * 6 lags * 8 vars = 1040
-bias_avg_T = [bias[(_*(n_sim*6*8)):(_+1)*(n_sim*6*8)] for _ in range(5)]
-bias_avg_T = [[np.absolute(b).mean(axis=1) for b in _] for _ in bias_avg_T]
-bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
-bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,6)]).T
-bias_avg_T.plot()
-
-rmse_avg_T = [bias[(_*(n_sim*6*8)):(_+1)*(n_sim*6*8)] for _ in range(5)]
-rmse_avg_T = [[(b**2).mean(axis=1) for b in _] for _ in rmse_avg_T]
-rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
-rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,6)]).T
-rmse_avg_T.plot()
-
-# n_sim * 5 lags = 130
-bias_avg_var = [[_ for _ in bias if len(_.columns) == count] for count in range(3,11)]
-bias_avg_var = [[np.absolute(b).mean(axis=1) for b in _] for _ in bias_avg_var]
+# n_var: 2,3,4: n_obs: 200,400,600,800,1000: n_lags:1,2,3,4
+# Separate bias list by n_var
+bias_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
+bias_avg_var = [[np.absolute(b).mean() for b in _] for _ in bias_avg_var]
 bias_avg_var = [sum(_)/len(_) for _ in bias_avg_var]
-bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(3,11)]).T
+bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(2,5)]).T
 bias_avg_var.plot();plt.show()
 
-rmse_avg_var = [[_ for _ in bias if len(_.columns) == count] for count in range(3,11)]
-rmse_avg_var = [[(b**2).mean(axis=1) for b in _] for _ in rmse_avg_var]
+rmse_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
+rmse_avg_var = [[np.absolute(b).mean()**2 for b in _] for _ in rmse_avg_var]
 rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
-rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(3,11)]).T
+rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(2,5)]).T
 rmse_avg_var.plot();plt.show()
 
+# Separate bias list by n_obs
+# n_obs: 200 = n_var:2,3,4 & 200 obs used in n_lags: 1,2,3,4; and so on
+# so, each n_obs is repeated 
+bias_avg_T = [bias[(_*(n_sim*3*4)):(_+1)*(n_sim*3*4)] for _ in range(5)]
+bias_avg_T = [[np.absolute(b).mean() for b in _] for _ in bias_avg_T]
+bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
+bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,6)]).T
+bias_avg_T.plot(); plt.show()
+
+rmse_avg_T = [bias[(_*(n_sim*3*4)):(_+1)*(n_sim*3*4)] for _ in range(5)]
+rmse_avg_T = [[(b**2).mean() for b in _] for _ in rmse_avg_T]
+rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
+rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,6)]).T
+rmse_avg_T.plot(); plt.show()
 
 
 
@@ -348,8 +353,8 @@ def knn_irf_1(sim_elements, impulse=0):
 n_sim = 50
 bias_1 = []
 
-for n_var in range(2,5):
-    for n_obs in [_*200 for _ in range(1,6)]:
+for n_obs in [_*200 for _ in range(1,6)]:
+    for n_var in range(2,5):
         for n_lags in range(1,5):
             counter = 0
             while counter < n_sim:
@@ -358,7 +363,10 @@ for n_var in range(2,5):
                     counter -= 1
                 else:
                     try:
-                        bias_1.append(knn_irf_1(sim).T - tvp_irf(sim).T)
+                        bias_1.append(knn_irf(sim).T - tvp_irf(sim).T)
+                        if bias[-1].isnull().values.any():
+                            bias.pop()
+                            counter -= 1
                     except:
                         counter -= 1
                         pass
@@ -366,18 +374,36 @@ for n_var in range(2,5):
                 counter += 1
 #End
 
-
 import pickle
 # Saving objects:
 with open('objs_1.pkl', 'wb') as f:
     pickle.dump(bias_1, f)
 # Getting back the objects:
+
 import pickle
 with open('objs_1.pkl', 'rb') as f:
     bias_1 = pickle.load(f)
 # End of code
 
-bias_avg = [np.absolute(_).mean() for _ in bias_1]
-sum(bias_avg)
-bias_avg = sum([_.fillna(0) for _ in bias_avg])/len(bias_avg)
-bias_avg[1:].plot(); plt.show()
+bias_avg_1 = [np.absolute(_).mean() for _ in bias_1]
+bias_avg_1 = sum(bias_avg_1)/len(bias_avg_1)
+bias_avg_1.plot(); plt.show()
+
+rmse_avg_1 = [np.absolute(_).mean()**2 for _ in bias_1]
+rmse_avg_1 = ((sum(rmse_avg_1)/len(rmse_avg_1)))**0.5
+rmse_avg_1.plot(); plt.show()
+
+
+# n_var: 2,3,4: n_obs: 200,400,600,800,1000: n_lags:1,2,3,4
+# Separate bias list by n_var
+bias_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
+bias_avg_var = [[np.absolute(b).mean() for b in _] for _ in bias_avg_var]
+bias_avg_var = [sum(_)/len(_) for _ in bias_avg_var]
+bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(2,5)]).T
+bias_avg_var.plot();plt.show()
+
+rmse_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
+rmse_avg_var = [[np.absolute(b).mean()**2 for b in _] for _ in rmse_avg_var]
+rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
+rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(2,5)]).T
+rmse_avg_var.plot();plt.show()
