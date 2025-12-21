@@ -166,9 +166,9 @@ def knn_irf(sim_elements, impulse=0):
     omega_mean = omega.mean()
     omega_std = omega.std()
     omega_scaled = (omega - omega_mean)/omega_std
-    histoi = omega.iloc[-10:].mean()
-    omega_scaled = omega_scaled.iloc[:-10]
-    histoi = (histoi - omega_mean)/omega_std
+    histoi = omega_scaled.iloc[-1]
+    omega_scaled = omega_scaled.iloc[:-11]
+    # histoi = (histoi - omega_mean)/omega_std
     T = omega_scaled.shape[0]
 
     knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
@@ -213,13 +213,12 @@ def knn_irf(sim_elements, impulse=0):
     girf = y_f_delta - y_f
     return girf
 
-sim_T = tvp_simulate(1000, 4, 1)
+sim_T = tvp_simulate(100, 3, 1)
 dataplot(tvp_irf(sim_T) - knn_irf(sim_T))
 
-# Bgin simulations
+# Begin simulations
 
-n_sim = 50
-
+n_sim = 10
 bias = []
 
 for n_obs in [_*200 for _ in range(1,6)]:
@@ -232,8 +231,8 @@ for n_obs in [_*200 for _ in range(1,6)]:
                     counter -= 1
                 else:
                     try:
-                        bias.append(knn_irf(sim).T - tvp_irf(sim).T)
-                        if bias[-1].isnull().values.any():
+                        bias.append({'bias' : tvp_irf(sim).T - knn_irf(sim).T, 'T': n_obs, 'k': n_var, 'p': n_lags})
+                        if bias[-1]['bias'].isnull().values.any():
                             bias.pop()
                             counter -= 1
                     except:
@@ -253,157 +252,69 @@ import pickle
 with open('objs.pkl', 'rb') as f:
     bias = pickle.load(f)
 
-bias_avg = [np.absolute(_).mean() for _ in bias]
+bias_avg = [np.absolute(_['bias']).mean() for _ in bias]
 bias_avg = sum(bias_avg)/len(bias_avg)
 bias_avg.plot(); plt.show()
 
-rmse_avg = [np.absolute(_).mean()**2 for _ in bias]
+rmse_avg = [np.absolute(_['bias']).mean()**2 for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
 rmse_avg.plot(); plt.show()
 
 # n_var: 2,3,4: n_obs: 200,400,600,800,1000: n_lags:1,2,3,4
 # Separate bias list by n_var
-bias_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
-bias_avg_var = [[np.absolute(b).mean() for b in _] for _ in bias_avg_var]
+bias_avg_var = [[_ for _ in bias if _['k'] == count] for count in range(2,5)]
+bias_avg_var = [[np.absolute(b['bias']).mean() for b in _] for _ in bias_avg_var]
 bias_avg_var = [sum(_)/len(_) for _ in bias_avg_var]
 bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(2,5)]).T
 bias_avg_var.plot();plt.show()
 
-rmse_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
-rmse_avg_var = [[np.absolute(b).mean()**2 for b in _] for _ in rmse_avg_var]
+rmse_avg_var = [[_ for _ in bias if _['k'] == count] for count in range(2,5)]
+rmse_avg_var = [[np.absolute(b['bias']).mean()**2 for b in _] for _ in rmse_avg_var]
 rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
 rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(2,5)]).T
 rmse_avg_var.plot();plt.show()
 
 # Separate bias list by n_obs
 # n_obs: 200 = n_var:2,3,4 & 200 obs used in n_lags: 1,2,3,4; and so on
-# so, each n_obs is repeated 
-bias_avg_T = [bias[(_*(n_sim*3*4)):(_+1)*(n_sim*3*4)] for _ in range(5)]
-bias_avg_T = [[np.absolute(b).mean() for b in _] for _ in bias_avg_T]
+# so, each n_obs is repeated
+bias_avg_T = [[_ for _ in bias if _['T'] == count*200] for count in range(1,6)]
+bias_avg_T = [[np.absolute(b['bias']).mean() for b in _] for _ in bias_avg_T]
 bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
 bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,6)]).T
 bias_avg_T.plot(); plt.show()
 
-rmse_avg_T = [bias[(_*(n_sim*3*4)):(_+1)*(n_sim*3*4)] for _ in range(5)]
-rmse_avg_T = [[(b**2).mean() for b in _] for _ in rmse_avg_T]
+rmse_avg_T = [[_ for _ in bias if _['T'] == count*200] for count in range(1,6)]
+rmse_avg_T = [[np.absolute(b['bias']).mean()**2 for b in _] for _ in rmse_avg_T]
 rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
 rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,6)]).T
 rmse_avg_T.plot(); plt.show()
 
+# Separate bias list by n_lags
+bias_avg_p = [[_ for _ in bias if _['p'] == count] for count in range(1,5)]
+bias_avg_p = [[np.absolute(b['bias']).mean() for b in _] for _ in bias_avg_p]
+bias_avg_p = [sum(_)/len(_) for _ in bias_avg_p]
+bias_avg_p = pd.DataFrame([_ for _ in bias_avg_p], index=[_ for _ in range(1,5)]).T
+bias_avg_p.plot(); plt.show()
+
+rmse_avg_p = [[_ for _ in bias if _['p'] == count] for count in range(1,5)]
+rmse_avg_p = [[np.absolute(b['bias']).mean()**2 for b in _] for _ in rmse_avg_p]
+rmse_avg_p = [(sum(_)/len(_))**0.5 for _ in rmse_avg_p]
+rmse_avg_p = pd.DataFrame([_ for _ in rmse_avg_p], index=[_ for _ in range(1,5)]).T
+rmse_avg_p.plot(); plt.show()
 
 
-def knn_irf_1(sim_elements, impulse=0):
-    if sim_elements == 'stuck':
-        return 'stuck'
-    delta_y = sim_elements['data'].copy()
-    n_var = sim_elements['n_var']
-    omega = delta_y.copy()
-    omega = omega.dropna()
+tab = pd.DataFrame(columns=range(0,11), index=pd.MultiIndex.from_product(
+    [range(2,5), range(1,5)], names=['Variables', 'Lags']
+))
+tab_bias = tab.copy()
+tab_rmse = tab.copy()
 
-    omega_mean = omega.mean()
-    omega_std = omega.std()
-    omega_scaled = (omega - omega_mean)/omega_std
-    histoi = omega.iloc[-10:].mean()
-    omega_scaled = omega_scaled.iloc[:-10]
-    histoi = (histoi - omega_mean)/omega_std
-    T = omega_scaled.shape[0]
+for n_var in range(2,5):
+    for n_lags in range(1,5):
+        # Following is done by Github Copilot, and I am scared.
+        tab_bias.loc[(n_var, n_lags)] = np.mean([np.absolute(b['bias']).mean() for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)])
+        tab_rmse.loc[(n_var, n_lags)] = np.mean([np.absolute(b['bias']).mean()**2 for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)])**0.5
 
-    knn = NearestNeighbors(n_neighbors=T, metric='euclidean')
-    knn.fit(omega_scaled)
-    dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
-    dist = dist[0,:]; ind = ind[0,:]
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-
-    # Estimate y_T
-    y_f = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
-    # y_f = np.matmul(y.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
-    for h in range(1,10+1):
-        y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
-    # dataplot(y_f)
-    u = delta_y - y_f.loc[0].values.squeeze()
-    u = u.iloc[:T]
-    # u_mean = u.mul(weig, axis = 0)
-    ################IMPORTANT CORRECTION HERE##################
-    u_mean = u.mean()
-    sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
-    # Cholesky decomposition
-    B_mat = np.transpose(np.linalg.cholesky(sigma_u))
-    # The desired shock
-    # B_mat = np.transpose(np.linalg.cholesky(u.cov()*((T-1)/(T-8-1))))
-    delta = B_mat[impulse]
-
-    # Estimate y_T_delta
-    y_f_delta = pd.DataFrame(columns=y_f.columns)
-    y_f_delta.loc[0] = y_f.loc[0] + delta
-
-    histoi_delta = (y_f.iloc[0] + delta - omega_mean)/omega_std
-
-    dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
-    dist = dist[0,:]; ind = ind[0,:]
-    weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-
-    for h in range(1,10+1):
-        y_f_delta.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + h].T, weig).values
-    # dataplot(y_f_delta)
-
-    girf = y_f_delta - y_f
-    return girf
-
-
-n_sim = 50
-bias_1 = []
-
-for n_obs in [_*200 for _ in range(1,6)]:
-    for n_var in range(2,5):
-        for n_lags in range(1,5):
-            counter = 0
-            while counter < n_sim:
-                sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
-                if sim == 'stuck':
-                    counter -= 1
-                else:
-                    try:
-                        bias_1.append(knn_irf(sim).T - tvp_irf(sim).T)
-                        if bias[-1].isnull().values.any():
-                            bias.pop()
-                            counter -= 1
-                    except:
-                        counter -= 1
-                        pass
-                print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(counter))
-                counter += 1
-#End
-
-import pickle
-# Saving objects:
-with open('objs_1.pkl', 'wb') as f:
-    pickle.dump(bias_1, f)
-# Getting back the objects:
-
-import pickle
-with open('objs_1.pkl', 'rb') as f:
-    bias_1 = pickle.load(f)
-# End of code
-
-bias_avg_1 = [np.absolute(_).mean() for _ in bias_1]
-bias_avg_1 = sum(bias_avg_1)/len(bias_avg_1)
-bias_avg_1.plot(); plt.show()
-
-rmse_avg_1 = [np.absolute(_).mean()**2 for _ in bias_1]
-rmse_avg_1 = ((sum(rmse_avg_1)/len(rmse_avg_1)))**0.5
-rmse_avg_1.plot(); plt.show()
-
-
-# n_var: 2,3,4: n_obs: 200,400,600,800,1000: n_lags:1,2,3,4
-# Separate bias list by n_var
-bias_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
-bias_avg_var = [[np.absolute(b).mean() for b in _] for _ in bias_avg_var]
-bias_avg_var = [sum(_)/len(_) for _ in bias_avg_var]
-bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(2,5)]).T
-bias_avg_var.plot();plt.show()
-
-rmse_avg_var = [[_ for _ in bias if len(_.index) == count] for count in range(2,5)]
-rmse_avg_var = [[np.absolute(b).mean()**2 for b in _] for _ in rmse_avg_var]
-rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
-rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(2,5)]).T
-rmse_avg_var.plot();plt.show()
+print(tab_bias.to_latex(float_format="%.2f"))
+print(tab_rmse.to_latex(float_format="%.2f"))
+# Exit

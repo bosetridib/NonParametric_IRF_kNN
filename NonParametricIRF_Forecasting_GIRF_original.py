@@ -2,6 +2,7 @@
 from NonParametricIRF_Data import *
 from Functions_Required import *
 from sklearn.neighbors import NearestNeighbors
+from math import dist
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -15,7 +16,7 @@ delta_y = y.copy()
 mod = transformation_logdiff(delta_y[trend])
 
 delta_y[trend] = mod.logdiff()
-# p=1; pd.concat([delta_y, sm.tsa.tsatools.lagmat(delta_y[['Unemployment_Rate', 'Treasurey3Months']], maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
+# p=1; pd.concat([delta_y, sm.tsa.tsatools.lagmat(delta_y, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
 # Forecasting
 # Horizon "in the middle"
@@ -26,40 +27,46 @@ def histoiOmega(macro_condition):
         omega = delta_y.loc[y.loc[
             (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
-        histoi = omega.mean()
     elif macro_condition == "High EPU - Expansion":
         omega = delta_y.loc[y.loc[
             (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
-        histoi = omega.mean()
     elif macro_condition == "Low EPU - Recession":
         omega = delta_y.loc[y.loc[
             (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
-        histoi = omega.mean()
     elif macro_condition == "Low EPU - Expansion":
         omega = delta_y.loc[y.loc[
             (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
-        histoi = omega.mean()
-    else:
-        omega = delta_y.iloc[:-(H+1)]
-        #histoi = delta_y.iloc[-1]
-        histoi = omega.mean()
-        print("Default history and omega.")
-    return (histoi, omega)
+    # Define the histoi and omega
+    omega = (omega - omega.mean())/omega.std()
+    omega = omega.dropna()
+    # Calculate Euclidean distances
+    eucl_dist = [dist(omega.loc[_], omega.mean()) for _ in omega.index]
+    histoi = omega.loc[omega.loc[eucl_dist == np.min(eucl_dist)].index]
+    return (histoi, delta_y.loc[omega.index])
 
 interest = [
     "High EPU - Recession",
+    "High EPU - Expansion",
+    "Low EPU - Recession",
     "Low EPU - Expansion"][0]
-(histoi, omega) = histoiOmega(interest)
+# histoiOmega(interest)
 
-omega = delta_y.dropna()
+(histoi, omega) = histoiOmega(interest)
+lag = 'yes'
+if lag == 'yes':
+    p=1
+    omega = pd.concat([omega, sm.tsa.tsatools.lagmat(omega, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
+
+omega = omega.dropna()
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_mean = omega.mean()
 omega_std = omega.std()
 omega_scaled = (omega - omega_mean)/omega_std
-histoi = (histoi - omega_mean)/omega_std
+
+histoi = omega_scaled.loc[histoi.index]
 # The number of observations considered are T-H
 T = omega_scaled.shape[0]
 
@@ -86,7 +93,7 @@ for h in range(1,H+1):
 
 # u = omega - omega_hat
 
-u = omega - y_f.loc[0].values.squeeze()
+u = delta_y.loc[omega.index] - y_f.loc[0].values.squeeze()
 # u_mean = u.mul(weig, axis = 0)
 u_mean = u.mean()
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
@@ -104,8 +111,8 @@ delta = B_mat[shock]
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 
-histoi_delta = (y_f.iloc[0] + delta - omega_mean.values)/omega_std.values
-# histoi_delta = pd.concat([histoi_delta, histoi], axis=0)[:-delta_y.shape[1]]
+histoi_delta = (y_f.iloc[0] + delta - delta_y.mean().values)/delta_y.std().values
+if lag == 'yes': histoi_delta = pd.concat([histoi_delta.squeeze(), histoi.T[:-delta_y.shape[1]].squeeze()], axis=0)
 
 dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -135,8 +142,8 @@ sim_girf = []
 # Perform simulations
 for r in range(0,R):
     omega_scaled_resamp = omega_scaled.sample(n=T, replace=True).sort_index()
-    omega_scaled_resamp_mean = delta_y.loc[omega_scaled_resamp.index].mean()
-    omega_scaled_resamp_sd = delta_y.loc[omega_scaled_resamp.index].std()
+    #omega_scaled_resamp_mean = delta_y.loc[omega_scaled_resamp.index].mean()
+    #omega_scaled_resamp_sd = delta_y.loc[omega_scaled_resamp.index].std()
     # Estimate y_T
     knn.fit(omega_scaled_resamp)
     dist, ind = knn.kneighbors(histoi.to_numpy().reshape(1,-1))
@@ -150,8 +157,8 @@ for r in range(0,R):
     y_f_delta_resamp = pd.DataFrame(columns=y_f_resamp.columns)
     y_f_delta_resamp.loc[0] = y_f_resamp.loc[0] + delta
 
-    histoi_delta_resamp = (y_f_resamp.loc[0] + delta - omega_scaled_resamp_mean)/omega_scaled_resamp_sd
-    histoi_delta_resamp = pd.concat([histoi_delta, histoi], axis=0)[:-delta_y.shape[1]]
+    histoi_delta_resamp = (y_f_resamp.loc[0] + delta - delta_y.mean().values)/delta_y.std().values
+    if lag == 'yes': histoi_delta_resamp = pd.concat([histoi_delta_resamp.squeeze(), histoi.T[:-delta_y.shape[1]].squeeze()], axis=0)
     dist, ind = knn.kneighbors(histoi_delta_resamp.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
@@ -174,11 +181,19 @@ girf_complete = pd.DataFrame(
     )
 )
 
+# for h in range(0,H+1):
+#     for col in y.columns:
+#         girf_complete[col][h,'lower'] = 2*girf[col][h] - np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], conf+(1-conf)/2)
+#         girf_complete[col][h,'GIRF'] = girf[col][h]
+#         girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], (1-conf)/2)
+# # girf_complete
+# girf_complete = girf_complete.astype('float')
+
 for h in range(0,H+1):
     for col in y.columns:
-        girf_complete[col][h,'lower'] = 2*girf[col][h] - np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], conf+(1-conf)/2)
-        girf_complete[col][h,'GIRF'] = girf[col][h]
-        girf_complete[col][h,'upper'] = 2*girf[col][h] - np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], (1-conf)/2)
+        girf_complete[col][h,'lower'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05)
+        girf_complete[col][h,'GIRF'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5)
+        girf_complete[col][h,'upper'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95)
 # girf_complete
 girf_complete = girf_complete.astype('float')
 
