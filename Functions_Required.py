@@ -35,7 +35,7 @@ def girfplot(df_mod, girf_complete, multi_index_col, shock):
 
 # Subplots
 def dataplot(data):
-    data.plot(subplots=True, layout=(2,4), figsize = (10,5))
+    data.plot(subplots=True, layout=(2,3), figsize = (10,5))
     plt.show()
 
 # RMSE function

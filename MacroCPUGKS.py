@@ -32,11 +32,11 @@ epu.set_index(
     ), inplace=True
 )
 epu.drop(
-    ['Year', 'Month', 'Three_Component_Index'],
+    ['Year', 'Month'],
     axis=1,
     inplace=True
 )
-epu = epu.loc['1987-04-01':'2019-06-01']
+epu = epu.sort_index().loc['1987-04-01':'2019-06-01']
 epu.columns = ['epu_index']
 
 macro_data = DataReader(
@@ -88,6 +88,10 @@ model_var = sm.tsa.VAR(df)
 
 results_var = model_var.fit(6)
 results_var.summary()
+u_t = results_var.resid
+print(results_var.test_normality().summary())
+import statsmodels
+print(statsmodels.stats.diagnostic.normal_ad(u_t))
 # np.linalg.cholesky(results_var.resid_corr).tolist()
 
 results_var.irf(40).plot(orth = True, impulse = 'cpu_index')

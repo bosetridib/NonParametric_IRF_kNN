@@ -9,42 +9,44 @@ warnings.filterwarnings('ignore')
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
 ##################################################################################
-shock = 1
-y = pd.concat([epu, cpu, macro_data], axis=1)
+shock = 0
+# y = pd.concat([epu, cpu, macro_data], axis=1)
+
+# Transforming the data as per Gavriilidis et al. (2021)
 delta_y = y.copy()
+delta_y[trend] = np.log(delta_y[trend])*100
 
+# Transforming the data to make it stationary
 mod = transformation_logdiff(delta_y[trend])
-
 delta_y[trend] = mod.logdiff()
-# p=1; pd.concat([delta_y, sm.tsa.tsatools.lagmat(delta_y, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
-# Forecasting
 # Horizon "in the middle"
 H = 40
 
+epu = epu.iloc[:,0]
 def histoiOmega(macro_condition):
     if macro_condition == "High EPU - Recession":
         omega = delta_y.loc[y.loc[
-            (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
+            (epu >= epu.mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
     elif macro_condition == "High EPU - Expansion":
         omega = delta_y.loc[y.loc[
-            (y['epu_index'] >= y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
+            (epu >= epu.mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
     elif macro_condition == "Low EPU - Recession":
         omega = delta_y.loc[y.loc[
-            (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
+            (epu < epu.mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
     elif macro_condition == "Low EPU - Expansion":
         omega = delta_y.loc[y.loc[
-            (y['epu_index'] < y['epu_index'].mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
+            (epu < epu.mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
     # Define the histoi and omega
     omega = (omega - omega.mean())/omega.std()
     omega = omega.dropna()
     # Calculate Euclidean distances
     eucl_dist = [dist(omega.loc[_], omega.mean()) for _ in omega.index]
-    histoi = omega.loc[omega.loc[eucl_dist == np.min(eucl_dist)].index]
+    histoi = delta_y.loc[omega.loc[eucl_dist == np.min(eucl_dist)].index]
     return (histoi, delta_y.loc[omega.index])
 
 interest = [
@@ -55,18 +57,24 @@ interest = [
 # histoiOmega(interest)
 
 (histoi, omega) = histoiOmega(interest)
+
 lag = 'yes'
 if lag == 'yes':
     p=1
     omega = pd.concat([omega, sm.tsa.tsatools.lagmat(omega, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
+    delta_y_lag = pd.concat([delta_y, sm.tsa.tsatools.lagmat(delta_y, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
 
 omega = omega.dropna()
-omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_mean = omega.mean()
 omega_std = omega.std()
+
 omega_scaled = (omega - omega_mean)/omega_std
 
-histoi = omega_scaled.loc[histoi.index]
+delta_y_lag = (delta_y_lag - delta_y_lag.mean())/delta_y_lag.std()
+histoi = delta_y_lag.loc[histoi.index - pd.DateOffset(months=1)]
+# histoi = omega_scaled.loc[histoi.index - pd.DateOffset(months=1)]
+omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
+omega_scaled = omega_scaled.loc[:y.index[-1] - pd.DateOffset(months=H)]
 # The number of observations considered are T-H
 T = omega_scaled.shape[0]
 
@@ -82,37 +90,26 @@ for h in range(1,H+1):
     y_f.loc[h] = np.matmul(delta_y.loc[omega_scaled.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
 # dataplot(y_f)
 
-# omega_hat = pd.DataFrame(index=omega.index, columns=omega.columns)
-
-# for t in omega.index:
-#     knn.fit(omega_scaled.drop(t))
-#     dist, ind = knn.kneighbors(omega_scaled.loc[t].to_numpy().reshape(1,-1))
-#     dist = dist[0,:]; ind = ind[0,:]
-#     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
-#     omega_hat.loc[t] = np.matmul(omega.loc[omega_scaled.iloc[ind].index].T, weig).to_frame().T
-
-# u = omega - omega_hat
-
 u = delta_y.loc[omega.index] - y_f.loc[0].values.squeeze()
 # u_mean = u.mul(weig, axis = 0)
 u_mean = u.mean()
 sigma_u = np.matmul((u - u_mean).T, (u - u_mean).mul(weig, axis = 0)) / (1 - np.sum(weig**2))
-# u.sort_index().plot(subplots = True, layout = (2,4))
+# u.sort_index().plot(subplots = True, layout = (2,3))
 
 # Define the shock
 # shock = 1
 # Cholesky decomposition
 B_mat = np.transpose(np.linalg.cholesky(sigma_u))
 # The desired shock
-# B_mat = np.transpose(np.linalg.cholesky(u.cov()*((T-1)/(T-8-1))))
 delta = B_mat[shock]
 
 # Estimate y_T_delta
 y_f_delta = pd.DataFrame(columns=y_f.columns)
 y_f_delta.loc[0] = y_f.loc[0] + delta
 
-histoi_delta = (y_f.iloc[0] + delta - delta_y.mean().values)/delta_y.std().values
-if lag == 'yes': histoi_delta = pd.concat([histoi_delta.squeeze(), histoi.T[:-delta_y.shape[1]].squeeze()], axis=0)
+histoi_delta = (y_f.iloc[0] + delta - omega_mean[:6])/omega_std[:6]
+if lag == 'yes':
+    histoi_delta = pd.concat([histoi_delta.squeeze(), histoi.T[:-delta_y.shape[1]].squeeze()], axis=0)
 
 dist, ind = knn.kneighbors(histoi_delta.to_numpy().reshape(1,-1))
 dist = dist[0,:]; ind = ind[0,:]
@@ -136,7 +133,7 @@ girf[trend] = mod.inv_logdiff_girf(girf[trend])
 # plt.show()
 
 # Confidence Intervals
-R=50
+R=100
 sim_girf = []
 
 # Perform simulations
@@ -157,8 +154,9 @@ for r in range(0,R):
     y_f_delta_resamp = pd.DataFrame(columns=y_f_resamp.columns)
     y_f_delta_resamp.loc[0] = y_f_resamp.loc[0] + delta
 
-    histoi_delta_resamp = (y_f_resamp.loc[0] + delta - delta_y.mean().values)/delta_y.std().values
-    if lag == 'yes': histoi_delta_resamp = pd.concat([histoi_delta_resamp.squeeze(), histoi.T[:-delta_y.shape[1]].squeeze()], axis=0)
+    histoi_delta_resamp = (y_f_resamp.loc[0] + delta - omega_mean[:6])/omega_std[:6]
+    if lag == 'yes':
+        histoi_delta_resamp = pd.concat([histoi_delta_resamp.squeeze(), histoi.T[:-delta_y.shape[1]].squeeze()], axis=0)
     dist, ind = knn.kneighbors(histoi_delta_resamp.to_numpy().reshape(1,-1))
     dist = dist[0,:]; ind = ind[0,:]
     weig = np.exp(-dist**2)/np.sum(np.exp(-dist**2))
@@ -174,7 +172,7 @@ for r in range(0,R):
 conf = 0.90
 # Define the multi-index dataframe for each horizon and CI for each column
 girf_complete = pd.DataFrame(
-    columns = y.columns,
+    columns = delta_y.columns,
     index = pd.MultiIndex(
         levels=[range(0,H+1),['lower','GIRF','upper']],
         codes=[[x//3 for x in range(0,(H+1)*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
@@ -190,7 +188,7 @@ girf_complete = pd.DataFrame(
 # girf_complete = girf_complete.astype('float')
 
 for h in range(0,H+1):
-    for col in y.columns:
+    for col in delta_y.columns:
         girf_complete[col][h,'lower'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05)
         girf_complete[col][h,'GIRF'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5)
         girf_complete[col][h,'upper'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95)
@@ -198,12 +196,27 @@ for h in range(0,H+1):
 girf_complete = girf_complete.astype('float')
 
 girf_complete = girf_complete.unstack()
-multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,24,3)]
+multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,18,3)]
 # Plot
 # girfplot(delta_y, girf_complete*(50/girf.iloc[0,shock]), multi_index_col, shock)
 #
 
 girf_complete = girf_complete*(50/girf.iloc[0,shock])
+
+girf_complete['Industrial_Production']['GIRF']
+girf_complete['Industrial_Production']['GIRF'].iloc[0] - girf_complete['Industrial_Production']['GIRF'].min()
+girf_complete['Unemployment_Rate']['GIRF']
+girf_complete['Unemployment_Rate']['GIRF'].iloc[0] - girf_complete['Unemployment_Rate']['GIRF'].iloc[6]
+girf_complete['Unemployment_Rate']['GIRF'].iloc[0] - girf_complete['Unemployment_Rate']['GIRF'].min()
+girf_complete['PriceIndex_Producer']['GIRF']
+girf_complete['PriceIndex_Producer']['GIRF'].iloc[0] - girf_complete['PriceIndex_Producer']['GIRF'].min()
+girf_complete['PriceIndex_PCE']['GIRF']
+girf_complete['PriceIndex_PCE']['GIRF'].iloc[0] - girf_complete['PriceIndex_PCE']['GIRF'].min()
+girf_complete['Emission_CO2']['GIRF']
+girf_complete['Emission_CO2']['GIRF'].iloc[0] - girf_complete['Emission_CO2']['GIRF'].min()
+girf_complete['Treasurey3Months']['GIRF']
+girf_complete['Treasurey3Months']['GIRF'].min()
+
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -223,7 +236,7 @@ import matplotlib.gridspec as gridspec
 # plt.show()
 # , color = 'r'
 plt.figure(figsize = (3.54,3.54))
-gs1 = gridspec.GridSpec(2, 4)
+gs1 = gridspec.GridSpec(2, 3)
 gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
 c=0
 for i in range(8):
