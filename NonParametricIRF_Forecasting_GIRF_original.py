@@ -1,10 +1,69 @@
+# from NonParametricIRF_Data import *
 # Import new and previous libraries, dataframe, variables, model, and IRF function.
-from NonParametricIRF_Data import *
+# pandas_datareader is used to import data from FRED, but currently is facing version
+# issues (incompatibility with pandas-3). Hence, the data is imported manually.
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+cpu = pd.read_excel(
+    'data/cpu_pu.xlsx',
+    sheet_name='data', usecols=['date', 'cpu_index_narrow'], index_col='date'
+)
+cpu.index = pd.to_datetime(cpu.index, format="%YM%m")
+cpu.columns = ['cpu_index']
+cpu = cpu.loc[:'2019-12-01']
+
+epu = pd.read_excel('data/US_Policy_Uncertainty_Data.xlsx', skipfooter=1)
+epu.set_index(
+    pd.to_datetime(
+        epu.Year.astype(str) + '-' + epu.Month.astype(str),
+        format="%Y-%m"
+    ), inplace=True
+)
+epu.drop(
+    ['Year', 'Month'],
+    axis=1,
+    inplace=True
+)
+epu = epu.sort_index().loc[cpu.index[0]:cpu.index[-1]]
+epu.columns = ['epu_index']
+
+# Importing the macroeconomic data
+macro_data_location = ['data/'+_+'.csv' for _ in ['INDPRO', 'UNRATE', 'CPIAUCSL', 'TB3MS']]
+macro_data = pd.concat(
+    [pd.read_csv(_, index_col='observation_date', parse_dates=True) for _ in macro_data_location],
+    axis=1
+).loc[cpu.index[0]:cpu.index[-1]]
+
+SPGSCI = pd.read_csv(
+    'data/SPGoldmanSachsCommodityIndex.csv', index_col='Date', parse_dates=True, usecols=['Date','Price']
+)
+SPGSCI = SPGSCI.sort_index().loc[cpu.index[0]:cpu.index[-1]]
+
+macro_data.insert(2, 'SPGSCI', SPGSCI)
+
+macro_data.columns = [
+    'Industrial_Production',
+    'Unemployment_Rate',
+    'PriceIndex_Producer',
+    'PriceIndex_Consumer',
+    'Treasurey3Months'
+]
+
+y = pd.concat([cpu, macro_data], axis=1)
+# Define the trend variables
+trend = y.columns[[0,1,3,4]]
+
 from Functions_Required import *
 from sklearn.neighbors import NearestNeighbors
-from math import dist
+import statsmodels.api as sm
+from math import dist as euclidean_dist
 import warnings
 warnings.filterwarnings('ignore')
+
+
 
 ##################################################################################
 ############################# kNN Forecasting & GIRF #############################
@@ -17,8 +76,7 @@ delta_y = y.copy()
 delta_y[trend] = np.log(delta_y[trend])*100
 
 # Transforming the data to make it stationary
-mod = transformation_logdiff(delta_y[trend])
-delta_y[trend] = mod.logdiff()
+delta_y[trend] = delta_y[trend].diff()
 
 # Horizon "in the middle"
 H = 40
@@ -45,8 +103,8 @@ def histoiOmega(macro_condition):
     omega = (omega - omega.mean())/omega.std()
     omega = omega.dropna()
     # Calculate Euclidean distances
-    eucl_dist = [dist(omega.loc[_], omega.mean()) for _ in omega.index]
-    histoi = delta_y.loc[omega.loc[eucl_dist == np.min(eucl_dist)].index]
+    dist = [euclidean_dist(omega.loc[_], omega.mean()) for _ in omega.index]
+    histoi = delta_y.loc[omega.loc[np.array(dist) == np.min(dist)].index]
     return (histoi, delta_y.loc[omega.index])
 
 interest = [
@@ -58,7 +116,7 @@ interest = [
 
 (histoi, omega) = histoiOmega(interest)
 
-lag = 'yes'
+lag = 'no'
 if lag == 'yes':
     p=1
     omega = pd.concat([omega, sm.tsa.tsatools.lagmat(omega, maxlag=p, use_pandas=True).iloc[p:]], axis = 1)
@@ -71,8 +129,10 @@ omega_std = omega.std()
 omega_scaled = (omega - omega_mean)/omega_std
 
 delta_y_lag = (delta_y_lag - delta_y_lag.mean())/delta_y_lag.std()
+# delta_y = (delta_y - delta_y.mean())/delta_y.std()
 histoi = delta_y_lag.loc[histoi.index - pd.DateOffset(months=1)]
-# histoi = omega_scaled.loc[histoi.index - pd.DateOffset(months=1)]
+# histoi = delta_y.loc[histoi.index - pd.DateOffset(months=1)]
+
 omega = omega.loc[:y.index[-1] - pd.DateOffset(months=H)]
 omega_scaled = omega_scaled.loc[:y.index[-1] - pd.DateOffset(months=H)]
 # The number of observations considered are T-H
@@ -120,7 +180,7 @@ for h in range(1,H+1):
 # dataplot(y_f_delta)
 
 girf = y_f_delta - y_f
-girf[trend] = mod.inv_logdiff_girf(girf[trend])
+girf[trend] = girf[trend].cumsum()
 # dataplot(girf*(50/girf.iloc[0,shock]))
 # dataplot(girf)
 
@@ -164,7 +224,7 @@ for r in range(0,R):
         y_f_delta_resamp.loc[h] = np.matmul(delta_y.loc[omega_scaled_resamp.iloc[ind].index + pd.DateOffset(months=h)].T, weig).values
     
     girf_resamp = y_f_delta_resamp - y_f_resamp
-    girf_resamp[trend] = mod.inv_logdiff_girf(girf_resamp[trend])
+    girf_resamp[trend] = girf_resamp[trend].cumsum()
     sim_girf.append(girf_resamp)
     print('loop: '+str(r))
 # End of loop, and now the sim_list_delta_y has each of the resampled dataframes
@@ -187,36 +247,27 @@ girf_complete = pd.DataFrame(
 # # girf_complete
 # girf_complete = girf_complete.astype('float')
 
-for h in range(0,H+1):
-    for col in delta_y.columns:
-        girf_complete[col][h,'lower'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05)
-        girf_complete[col][h,'GIRF'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5)
-        girf_complete[col][h,'upper'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95)
+# for h in range(0,H+1):
+#     for col in delta_y.columns:
+#         girf_complete[col][h,'lower'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05)
+#         girf_complete[col][h,'GIRF'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5)
+#         girf_complete[col][h,'upper'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95)
+# # girf_complete
+# girf_complete = girf_complete.astype('float')
+
+girf_complete = girf_complete.unstack()
+for col in delta_y.columns:
+    girf_complete[(col,'lower')] = [np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05) for h in range(0,H+1)]
+    girf_complete[(col,'GIRF')] = [np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5) for h in range(0,H+1)]
+    girf_complete[(col,'upper')] = [np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95) for h in range(0,H+1)]
 # girf_complete
 girf_complete = girf_complete.astype('float')
 
-girf_complete = girf_complete.unstack()
 multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_complete.columns[i+2]) for i in range(0,18,3)]
 # Plot
 # girfplot(delta_y, girf_complete*(50/girf.iloc[0,shock]), multi_index_col, shock)
-#
 
 girf_complete = girf_complete*(50/girf.iloc[0,shock])
-
-girf_complete['Industrial_Production']['GIRF']
-girf_complete['Industrial_Production']['GIRF'].iloc[0] - girf_complete['Industrial_Production']['GIRF'].min()
-girf_complete['Unemployment_Rate']['GIRF']
-girf_complete['Unemployment_Rate']['GIRF'].iloc[0] - girf_complete['Unemployment_Rate']['GIRF'].iloc[6]
-girf_complete['Unemployment_Rate']['GIRF'].iloc[0] - girf_complete['Unemployment_Rate']['GIRF'].min()
-girf_complete['PriceIndex_Producer']['GIRF']
-girf_complete['PriceIndex_Producer']['GIRF'].iloc[0] - girf_complete['PriceIndex_Producer']['GIRF'].min()
-girf_complete['PriceIndex_PCE']['GIRF']
-girf_complete['PriceIndex_PCE']['GIRF'].iloc[0] - girf_complete['PriceIndex_PCE']['GIRF'].min()
-girf_complete['Emission_CO2']['GIRF']
-girf_complete['Emission_CO2']['GIRF'].iloc[0] - girf_complete['Emission_CO2']['GIRF'].min()
-girf_complete['Treasurey3Months']['GIRF']
-girf_complete['Treasurey3Months']['GIRF'].min()
-
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
