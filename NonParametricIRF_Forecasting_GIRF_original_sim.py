@@ -127,7 +127,7 @@ np.mean(test_sim['B_mat'][2,:])
 plt.plot(test_sim['B_mat'][7,:]);plt.show()
 dataplot(test_sim['data'])
 
-def tvp_irf(sim_elements, t=10, impulse = 0):
+def tvp_irf(sim_elements, t=20, impulse = 0):
     if sim_elements == 'stuck':
         return 'stuck'
     # Collect the basic variables.
@@ -162,7 +162,7 @@ def tvp_irf(sim_elements, t=10, impulse = 0):
     return irf_tvp
 # sim_elements = tvp_simulate(200, 3, 2); impulse=0
 
-def knn_irf(sim_elements, t=10, impulse=0):
+def knn_irf(sim_elements, t=20, impulse=0):
     if sim_elements == 'stuck':
         return 'stuck'
     delta_y = sim_elements['data'].copy()
@@ -174,8 +174,11 @@ def knn_irf(sim_elements, t=10, impulse=0):
     omega_mean = omega.mean()
     omega_std = omega.std()
     omega_scaled = (omega - omega_mean)/omega_std
-    histoi = omega_scaled.iloc[-2]
-    omega_scaled = omega_scaled.iloc[:-12]
+    
+    # We subset the data to the last t observations, and we keep the last observation as the history to find the neighbors.
+    omega_scaled = omega_scaled.iloc[:t]
+    histoi = omega_scaled.iloc[-1]
+    omega_scaled = omega_scaled.iloc[:-11]
     # histoi = (histoi - omega_mean)/omega_std
     T = omega_scaled.shape[0]
 
@@ -262,19 +265,18 @@ def knn_irf(sim_elements, t=10, impulse=0):
             codes=[[x//3 for x in range(0,(H+1)*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
         )
     )
-    for h in range(0,H+1):
-        for col in y_f.columns:
-            girf_complete[col][h,'lower'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05)
-            girf_complete[col][h,'GIRF'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5)
-            #girf_complete[col][h,'GIRF'] = girf[col][h]
-            girf_complete[col][h,'upper'] = np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95)
+    girf_complete = girf_complete.unstack()
+    for col in y_f.columns:
+        girf_complete[(col,'lower')] = [np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.05) for h in range(0,H+1)]
+        girf_complete[(col,'GIRF')] = [np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.5) for h in range(0,H+1)]
+        girf_complete[(col,'upper')] = [np.quantile([each_delta_y[col][h] for each_delta_y in sim_girf], 0.95) for h in range(0,H+1)]
     # girf_complete
     girf_complete = girf_complete.astype('float')
 
     return {'girf': girf, 'girf_complete': girf_complete}
 
 sim_T = tvp_simulate(100, 3, 2)
-tvp_irf(sim_T, T=20)
+tvp_irf(sim_T)
 knn_irf(sim_T)
 # kirf = knn_irf(sim_T)
 # girf_lower = pd.DataFrame([kirf['girf_complete'].loc[_,'lower'] for _ in range(0,11)]).reset_index(drop=True).T
@@ -288,34 +290,34 @@ n_sim = 50
 bias = []
 
 for n_obs in [_*200 for _ in range(1,6)]:
-    for n_var in range(2,5):
-        for n_lags in range(1,5):
-            counter = 0
-            while counter < n_sim:
-                sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
-                if sim == 'stuck':
-                    counter -= 1
-                else:
-                    try:
-                        knn_irf_sim = knn_irf(sim)
-                        girf_lwr = pd.DataFrame([knn_irf_sim['girf_complete'].loc[_,'lower'] for _ in range(0,11)]).reset_index(drop=True).T
-                        girf = pd.DataFrame([knn_irf_sim['girf_complete'].loc[_,'GIRF'] for _ in range(0,11)]).reset_index(drop=True).T
-                        girf_upr = pd.DataFrame([knn_irf_sim['girf_complete'].loc[_,'upper'] for _ in range(0,11)]).reset_index(drop=True).T
-                        bias.append({
-                            'bias' : girf - tvp_irf(sim).T,
-                            'T': n_obs, 'k': n_var, 'p': n_lags,
-                            'ci_l' : girf_lwr, 'ci_u' : girf_upr,
-                            'tvp_irf': tvp_irf(sim).T
-                        })
-                        # There are NaN values generated sometimes randomly, so we remove those simulations
-                        if bias[-1]['bias'].isnull().values.any():
-                            bias.pop()
-                            counter -= 1
-                    except:
+    n_var = 2; n_lags = 2
+    counter = 0
+    while counter < n_sim:
+        sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
+        if sim == 'stuck':
+            counter -= 1
+        else:
+            try:
+                for t in range(20, n_obs):
+                    knn_irf_sim = knn_irf(sim, t)
+                    girf_lwr = knn_irf_sim['girf_complete'].loc[:,(slice(None),'lower')].T.set_index(sim['data'].columns)
+                    girf = knn_irf_sim['girf_complete'].loc[:,(slice(None),'GIRF')].T.set_index(sim['data'].columns)
+                    girf_upr = knn_irf_sim['girf_complete'].loc[:,(slice(None),'upper')].T.set_index(sim['data'].columns)
+                    bias.append({
+                        'bias' : girf - tvp_irf(sim).T,
+                        'T': n_obs, 'k': n_var, 'p': n_lags,
+                        'ci_l' : girf_lwr, 'ci_u' : girf_upr,
+                        'tvp_irf': tvp_irf(sim).T
+                    })
+                    # There are NaN values generated sometimes randomly, so we remove those simulations
+                    if bias[-1]['bias'].isnull().values.any():
+                        bias.pop()
                         counter -= 1
-                        pass
-                print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(counter))
-                counter += 1
+            except:
+                counter -= 1
+                pass
+        print(str(n_obs) + ',' + str(n_var) + ',' +str(n_lags) + ',' +str(counter))
+        counter += 1
 #End
 
 import pickle
