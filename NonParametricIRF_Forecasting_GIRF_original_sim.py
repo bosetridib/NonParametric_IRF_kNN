@@ -1,5 +1,5 @@
 # Import new and previous libraries, dataframe, variables, model, and IRF function.
-from NonParametricIRF_Data import *
+# from NonParametricIRF_Data import *
 from Functions_Required import *
 from sklearn.neighbors import NearestNeighbors
 import statsmodels.api as sm
@@ -29,7 +29,7 @@ def random_walk(T, scl):
     return rw_t
 
 # Function to generate Y_tvp
-def tvp_simulate(n_obs = 500, n_var = 2, n_lags = 2, intercept = 1):
+def tvp_simulate(n_obs = 200, n_var = 2, n_lags = 2, intercept = 1):
     # number of observations, variables, and lags
 
     # Define Y_TVP: we also initialize it with the minimum number
@@ -123,11 +123,11 @@ def tvp_simulate(n_obs = 500, n_var = 2, n_lags = 2, intercept = 1):
     }
 
 test_sim = tvp_simulate()
-# np.mean(test_sim['B_mat'][2,:])
-# plt.plot(test_sim['B_mat'][7,:]);plt.show()
-# dataplot(test_sim['data'])
+np.mean(test_sim['B_mat'][2,:])
+plt.plot(test_sim['B_mat'][7,:]);plt.show()
+dataplot(test_sim['data'])
 
-def tvp_irf(sim_elements, impulse = 0):
+def tvp_irf(sim_elements, t=10, impulse = 0):
     if sim_elements == 'stuck':
         return 'stuck'
     # Collect the basic variables.
@@ -141,10 +141,10 @@ def tvp_irf(sim_elements, impulse = 0):
 
     # Fix the lower triangular matrix
     A_t = np.eye(n_var)
-    A_t[np.tril_indices(n_var, k=-1)] = alpha_t[:,n_obs-1]
+    A_t[np.tril_indices(n_var, k=-1)] = alpha_t[:,t-1]
 
     # Collect the coefficient matrices to form the companion matrix
-    Phi_mat = B_mat[:,n_obs-1]
+    Phi_mat = B_mat[:,t-1]
     Phi_mat = Phi_mat.reshape(n_var,(n_var*n_lags)+1)
     Phi_mat = Phi_mat[:,1:]
 
@@ -162,7 +162,7 @@ def tvp_irf(sim_elements, impulse = 0):
     return irf_tvp
 # sim_elements = tvp_simulate(200, 3, 2); impulse=0
 
-def knn_irf(sim_elements, impulse=0):
+def knn_irf(sim_elements, t=10, impulse=0):
     if sim_elements == 'stuck':
         return 'stuck'
     delta_y = sim_elements['data'].copy()
@@ -274,7 +274,7 @@ def knn_irf(sim_elements, impulse=0):
     return {'girf': girf, 'girf_complete': girf_complete}
 
 sim_T = tvp_simulate(100, 3, 2)
-tvp_irf(sim_T)
+tvp_irf(sim_T, T=20)
 knn_irf(sim_T)
 # kirf = knn_irf(sim_T)
 # girf_lower = pd.DataFrame([kirf['girf_complete'].loc[_,'lower'] for _ in range(0,11)]).reset_index(drop=True).T
