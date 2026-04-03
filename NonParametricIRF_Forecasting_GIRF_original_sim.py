@@ -379,7 +379,7 @@ class TVPVAR(sm.tsa.statespace.MLEModel):
                 ['L1.%s->%s' % (other_name, endog_name) for other_name in self.endog_names])
         return state_names.ravel().tolist()
 
-sim_T = tvp_simulate(200, 3, 2)
+sim_T = tvp_simulate(200, 4, 1)
 mod = TVPVAR(sim_T['data'])
 initial_obs_cov = np.cov(sim_T['data'].T)
 initial_state_cov_diag = [0.01] * mod.k_states
@@ -414,7 +414,7 @@ v10 = mod.k_endog + 3
 S10 = np.eye(mod.k_endog)
 
 # Prior for state cov. variances is inverse-Gamma(v_{i2}^0 / 2 = 3, S+{i2}^0 / 2 = 0.005)
-vi20 = 6
+vi20 = 1
 Si20 = 0.01
 
 for i in range(niter):
@@ -440,37 +440,64 @@ for i in range(niter):
 states_posterior_mean = pd.DataFrame(
     np.mean(store_states[nburn + 1:], axis=0),
     index=mod._index, columns=mod.state_names)
-def plot_coefficients_by_equation(states):
-    fig, axes = plt.subplots(2, 2, figsize=(15, 8))
+states_posterior_mean.columns
 
-    # The way we defined Z_t implies that the first 5 elements of the
-    # state vector correspond to the first variable in y_t, which is GDP growth
-    ax = axes[0, 0]
-    states.iloc[:, :5].plot(ax=ax)
-    ax.set_title('GDP growth')
-    ax.legend()
+y_sim_tvp = pd.DataFrame(
+        data=[np.random.normal(size=n_var) for _ in range(n_lags)],
+        columns=['y'+str(c_num) for c_num in range(1,n_var+1)]
+    )
 
-    # The next 5 elements correspond to inflation
-    ax = axes[0, 1]
-    states.iloc[:, 5:10].plot(ax=ax)
-    ax.set_title('Inflation rate')
-    ax.legend();
+B_mat = states_posterior_mean.T.to_numpy()
+n_obs = 200; n_var = 2; n_lags = 1; intercept = 1
+for t in range(n_obs-1):
+    # We form the matrices/vectors at time t.
+    # For X_t' matrix, we first collect the
+    # vector [y_t-1, ..., y_t-p] for the vector
+    # [1, y_t-1, ..., y_t-p] for p being the
+    # number of lags (n_lags).
+    y_t_lags = y_sim_tvp1.iloc[::-1].iloc[:n_lags]
+    # Define X_t' matrix using the Kronecker product.
+    X_t = np.kron(
+        np.identity(n_var),
+        np.append(intercept,y_t_lags)
+    )
+    # Define B_t matrix at time t
+    B_t = B_mat[:,t]
+    y_sim_tvp1.loc[n_lags + t] = np.matmul(X_t, B_t.T)
+# Slice the initialized values out
 
-    # The next 5 elements correspond to unemployment
-    ax = axes[1, 0]
-    states.iloc[:, 10:15].plot(ax=ax)
-    ax.set_title('Unemployment equation')
-    ax.legend()
+y_sim_tvp.index += 1
+# def plot_coefficients_by_equation(states):
+#     fig, axes = plt.subplots(2, 2, figsize=(15, 8))
 
-    # The last 5 elements correspond to the interest rate
-    ax = axes[1, 1]
-    states.iloc[:, 15:20].plot(ax=ax)
-    ax.set_title('Interest rate equation')
-    ax.legend();
+#     # The way we defined Z_t implies that the first 5 elements of the
+#     # state vector correspond to the first variable in y_t, which is GDP growth
+#     ax = axes[0, 0]
+#     states.iloc[:, :5].plot(ax=ax)
+#     ax.set_title('GDP growth')
+#     ax.legend()
 
-    return ax
-# Plot these means over time
-plot_coefficients_by_equation(states_posterior_mean); plt.show()
+#     # The next 5 elements correspond to inflation
+#     ax = axes[0, 1]
+#     states.iloc[:, 5:10].plot(ax=ax)
+#     ax.set_title('Inflation rate')
+#     ax.legend();
+
+#     # The next 5 elements correspond to unemployment
+#     ax = axes[1, 0]
+#     states.iloc[:, 10:15].plot(ax=ax)
+#     ax.set_title('Unemployment equation')
+#     ax.legend()
+
+#     # The last 5 elements correspond to the interest rate
+#     ax = axes[1, 1]
+#     states.iloc[:, 15:20].plot(ax=ax)
+#     ax.set_title('Interest rate equation')
+#     ax.legend();
+
+#     return ax
+# # Plot these means over time
+# plot_coefficients_by_equation(states_posterior_mean); plt.show()
 
 import pickle
 # Saving objects:
