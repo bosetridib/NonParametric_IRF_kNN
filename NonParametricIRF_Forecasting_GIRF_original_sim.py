@@ -276,9 +276,10 @@ def knn_irf(sim_elements, t=20, impulse=0):
 
     return {'girf': girf, 'girf_complete': girf_complete}
 
-sim_T = tvp_simulate(200, 3, 2)
+sim_T = tvp_simulate(200, 2, 1)
 tvp_irf(sim_T)
-knn_irf(sim_T)
+knn_irf(sim_T)['girf']
+tvp_irf(sim_T) - knn_irf(sim_T)['girf']
 # kirf = knn_irf(sim_T)
 # girf_lower = pd.DataFrame([kirf['girf_complete'].loc[_,'lower'] for _ in range(0,11)]).reset_index(drop=True).T
 # girf = pd.DataFrame([kirf['girf_complete'].loc[_,'GIRF'] for _ in range(0,11)]).reset_index(drop=True).T
@@ -379,7 +380,7 @@ class TVPVAR(sm.tsa.statespace.MLEModel):
                 ['L1.%s->%s' % (other_name, endog_name) for other_name in self.endog_names])
         return state_names.ravel().tolist()
 
-sim_T = tvp_simulate(200, 4, 1)
+sim_T = tvp_simulate(200, 2, 1)
 mod = TVPVAR(sim_T['data'])
 initial_obs_cov = np.cov(sim_T['data'].T)
 initial_state_cov_diag = [0.01] * mod.k_states
@@ -442,20 +443,22 @@ states_posterior_mean = pd.DataFrame(
     index=mod._index, columns=mod.state_names)
 states_posterior_mean.columns
 
+n_obs = 200; n_var = 2; n_lags = 1; intercept = 1
+
 y_sim_tvp = pd.DataFrame(
-        data=[np.random.normal(size=n_var) for _ in range(n_lags)],
+        data=[np.zeros(n_var) for _ in range(n_lags)],
         columns=['y'+str(c_num) for c_num in range(1,n_var+1)]
     )
 
 B_mat = states_posterior_mean.T.to_numpy()
-n_obs = 200; n_var = 2; n_lags = 1; intercept = 1
+
 for t in range(n_obs-1):
     # We form the matrices/vectors at time t.
     # For X_t' matrix, we first collect the
     # vector [y_t-1, ..., y_t-p] for the vector
     # [1, y_t-1, ..., y_t-p] for p being the
     # number of lags (n_lags).
-    y_t_lags = y_sim_tvp1.iloc[::-1].iloc[:n_lags]
+    y_t_lags = y_sim_tvp.iloc[::-1].iloc[:n_lags]
     # Define X_t' matrix using the Kronecker product.
     X_t = np.kron(
         np.identity(n_var),
@@ -463,10 +466,18 @@ for t in range(n_obs-1):
     )
     # Define B_t matrix at time t
     B_t = B_mat[:,t]
-    y_sim_tvp1.loc[n_lags + t] = np.matmul(X_t, B_t.T)
+    y_sim_tvp.loc[n_lags + t] = np.matmul(X_t, B_t.T)
 # Slice the initialized values out
 
 y_sim_tvp.index += 1
+
+sim_T['data'].plot(subplots=True); plt.show()
+y_sim_tvp.plot(); plt.show()
+
+fig = sim_T['data'].plot(subplots=True)
+fig[0].plot(y_sim_tvp.iloc[:,0], color='red')
+fig[1].plot(y_sim_tvp.iloc[:,1], color='black')
+plt.show()
 # def plot_coefficients_by_equation(states):
 #     fig, axes = plt.subplots(2, 2, figsize=(15, 8))
 
