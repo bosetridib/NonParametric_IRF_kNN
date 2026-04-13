@@ -123,10 +123,10 @@ def tvp_simulate(n_obs = 200, n_var = 2, n_lags = 2, intercept = 1):
         'n_lags': n_lags
     }
 
-test_sim = tvp_simulate()
-np.mean(test_sim['B_mat'][2,:])
-# plt.plot(test_sim['B_mat'][7,:]);plt.show()
-dataplot(test_sim['data'])
+# test_sim = tvp_simulate()
+# np.mean(test_sim['B_mat'][2,:])
+# # plt.plot(test_sim['B_mat'][7,:]);plt.show()
+# dataplot(test_sim['data'])
 
 def tvp_irf(sim_elements, t=20, impulse = 0):
     if sim_elements == 'stuck':
@@ -326,7 +326,7 @@ for n_obs in [_*200 for _ in range(1,6)]:
         counter += 1
 #End
 
-class TVPVAR(sm.tsa.statespace.MLEModel):
+class TVPVAR_beta(sm.tsa.statespace.MLEModel):
     # Steps 2-3 are best done in the class "constructor", i.e. the __init__ method
     def __init__(self, y):
         # Create a matrix with [y_t' : y_{t-1}'] for t = 2, ..., T
@@ -380,8 +380,65 @@ class TVPVAR(sm.tsa.statespace.MLEModel):
                 ['L1.%s->%s' % (other_name, endog_name) for other_name in self.endog_names])
         return state_names.ravel().tolist()
 
+class TVPVAR_alpha(sm.tsa.statespace.MLEModel):
+    # Steps 2-3 are best done in the class "constructor", i.e. the __init__ method
+    def __init__(self, y):
+        # Create a matrix with [y_t' : y_{t-1}'] for t = 2, ..., T
+        # augmented = sm.tsa.lagmat(y, 1, trim='both', original='in', use_pandas=True)
+        # Separate into y_t and z_t = [1 : y_{t-1}']
+        p = y.shape[1]
+        residual_t = y.copy()
+        z_t = pd.concat([pd.Series(0, index=y.index, name='const'), -residual_t.iloc[:, :-1]], axis=1)
+
+        # Recall that the length of the state vector is p * (p + 1)
+        k_states = int(p * (p - 1) / 2)
+        super().__init__(residual_t, exog=z_t, k_states=k_states)
+
+        # Note that the state space system matrices default to contain zeros,
+        # so we don't need to explicitly set c_t = d_t = 0.
+
+        # Construct the design matrix Z_t
+        # Notes:
+        # -> self.k_endog = p is the dimension of the observed vector
+        # -> self.k_states = p * (p + 1) is the dimension of the observed vector
+        # -> self.nobs = T is the number of observations in y_t
+        self['design'] = np.zeros((self.k_endog, self.k_states, self.nobs))
+        for i in range(self.k_endog):
+            start = i * (self.k_endog + 1)
+            end = start + self.k_endog + 1
+            self['design', i, start:end, :] = z_t.T
+
+        # Construct the transition matrix T = I
+        self['transition'] = np.eye(k_states)
+
+        # Construct the selection matrix R = I
+        self['selection'] = np.eye(k_states)
+
+        # Step 3: Initialize the state vector as alpha_1 ~ N(0, 5I)
+        self.ssm.initialize('known', stationary_cov= np.eye(self.k_states))
+
+    # Step 4. Create a method that we can call to update H and Q
+    def update_variances(self, obs_cov, state_cov_diag):
+        self['obs_cov'] = obs_cov
+        self['state_cov'] = np.diag(state_cov_diag)
+
+    # Finally, it can be convenient to define human-readable names for
+    # each element of the state vector. These will be available in output
+    @property
+    def state_names(self):
+        state_names = [
+            'alpha' +
+            str(np.tril_indices(self.k_endog, k=-1)[0][_]+1) +
+            str(np.tril_indices(self.k_endog, k=-1)[1][_]+1)
+            for _ in range(self.k_endog)
+        ]
+        return state_names
+
+['alpha' + str(np.tril_indices(3, k=-1)[0][_]+1) + str(np.tril_indices(3, k=-1)[1][_]+1) for _ in range(3)]
+
 sim_T = tvp_simulate(200, 2, 1)
-mod = TVPVAR(sim_T['data'])
+mod = TVPVAR_beta(sim_T['data'])
+
 initial_obs_cov = np.cov(sim_T['data'].T)
 initial_state_cov_diag = [0.01] * mod.k_states
 
@@ -430,6 +487,8 @@ for i in range(niter):
     resid = mod.endog - fitted
     store_obs_cov[i + 1] = invwishart.rvs(v10 + mod.nobs, S10 + resid.T @ resid)
 
+    mod_alpha = TVPVAR_alpha(pd.DataFrame(resid, columns=sim_T['data'].columns))
+
     # 3. Simulate state cov variances
     resid = store_states[i + 1, 1:] - store_states[i + 1, :-1]
     sse = np.sum(resid**2, axis=0)
@@ -442,6 +501,9 @@ states_posterior_mean = pd.DataFrame(
     np.mean(store_states[nburn + 1:], axis=0),
     index=mod._index, columns=mod.state_names)
 states_posterior_mean.columns
+
+store_state_cov[nburn + 1]
+
 
 n_obs = 200; n_var = 2; n_lags = 1; intercept = 1
 
@@ -471,44 +533,17 @@ for t in range(n_obs-1):
 
 y_sim_tvp.index += 1
 
-sim_T['data'].plot(subplots=True); plt.show()
-y_sim_tvp.plot(); plt.show()
+# sim_T['data'].plot(subplots=True); plt.show()
+# y_sim_tvp.plot(); plt.show()
 
-fig = sim_T['data'].plot(subplots=True)
-fig[0].plot(y_sim_tvp.iloc[:,0], color='red')
-fig[1].plot(y_sim_tvp.iloc[:,1], color='black')
-plt.show()
-# def plot_coefficients_by_equation(states):
-#     fig, axes = plt.subplots(2, 2, figsize=(15, 8))
-
-#     # The way we defined Z_t implies that the first 5 elements of the
-#     # state vector correspond to the first variable in y_t, which is GDP growth
-#     ax = axes[0, 0]
-#     states.iloc[:, :5].plot(ax=ax)
-#     ax.set_title('GDP growth')
-#     ax.legend()
-
-#     # The next 5 elements correspond to inflation
-#     ax = axes[0, 1]
-#     states.iloc[:, 5:10].plot(ax=ax)
-#     ax.set_title('Inflation rate')
-#     ax.legend();
-
-#     # The next 5 elements correspond to unemployment
-#     ax = axes[1, 0]
-#     states.iloc[:, 10:15].plot(ax=ax)
-#     ax.set_title('Unemployment equation')
-#     ax.legend()
-
-#     # The last 5 elements correspond to the interest rate
-#     ax = axes[1, 1]
-#     states.iloc[:, 15:20].plot(ax=ax)
-#     ax.set_title('Interest rate equation')
-#     ax.legend();
-
-#     return ax
-# # Plot these means over time
-# plot_coefficients_by_equation(states_posterior_mean); plt.show()
+# fig = sim_T['data'].plot(subplots=True)
+# fig[0].plot(y_sim_tvp.iloc[:,0], color='red')
+# fig[1].plot(y_sim_tvp.iloc[:,1], color='black')
+# plt.show()
+residual_sim = sim_T['data'] - y_sim_tvp
+residual_sim.plot(subplots=True); plt.show()
+res_cov_sim = np.linalg.matmul(residual_sim.iloc[1].to_numpy().reshape(-1,1), residual_sim.iloc[1].to_numpy().reshape(1,-1))
+np.linalg.det(res_cov_sim)
 
 import pickle
 # Saving objects:
