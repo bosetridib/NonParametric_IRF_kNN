@@ -81,37 +81,37 @@ delta_y[trend] = delta_y[trend].diff()
 # Horizon "in the middle"
 H = 40
 
-epu = epu.iloc[:,0]
+cpu = cpu.iloc[:,0]
 def histoiOmega(macro_condition):
-    if macro_condition == "High EPU - Recession":
-        omega = delta_y.loc[y.loc[
-            (epu >= epu.mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
+    if macro_condition == "High CPU - Recession":
+        omega_rep = delta_y.loc[y.loc[
+            (cpu >= cpu.mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
-    elif macro_condition == "High EPU - Expansion":
-        omega = delta_y.loc[y.loc[
-            (epu >= epu.mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
+    elif macro_condition == "High CPU - Expansion":
+        omega_rep = delta_y.loc[y.loc[
+            (cpu >= cpu.mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
-    elif macro_condition == "Low EPU - Recession":
-        omega = delta_y.loc[y.loc[
-            (epu < epu.mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
+    elif macro_condition == "Low CPU - Recession":
+        omega_rep = delta_y.loc[y.loc[
+            (cpu < cpu.mean()) & (y['Unemployment_Rate'] >= y['Unemployment_Rate'].mean())
         ].index]
-    elif macro_condition == "Low EPU - Expansion":
-        omega = delta_y.loc[y.loc[
-            (epu < epu.mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
+    elif macro_condition == "Low CPU - Expansion":
+        omega_rep = delta_y.loc[y.loc[
+            (cpu < cpu.mean()) & (y['Unemployment_Rate'] < y['Unemployment_Rate'].mean())
         ].index]
-    # Define the histoi and omega
-    omega = (omega - omega.mean())/omega.std()
-    omega = omega.dropna()
+    # Define the histoi and omega_rep
+    omega_rep = (omega_rep - omega_rep.mean())/omega_rep.std()
+    omega_rep = omega_rep.dropna()
     # Calculate Euclidean distances
-    dist = [euclidean_dist(omega.loc[_], omega.mean()) for _ in omega.index]
-    histoi = delta_y.loc[omega.loc[np.array(dist) == np.min(dist)].index]
-    return (histoi, delta_y.loc[omega.index])
+    dist = [euclidean_dist(omega_rep.loc[_], omega_rep.mean()) for _ in omega_rep.index]
+    histoi = delta_y.loc[omega_rep.loc[np.array(dist) == np.min(dist)].index]
+    return (histoi, delta_y.loc[omega_rep.index])
 
 interest = [
-    "High EPU - Recession",
-    "High EPU - Expansion",
-    "Low EPU - Recession",
-    "Low EPU - Expansion"][0]
+    "High CPU - Recession",
+    "High CPU - Expansion",
+    "Low CPU - Recession",
+    "Low CPU - Expansion"][0]
 # histoiOmega(interest)
 
 (histoi, omega) = histoiOmega(interest)

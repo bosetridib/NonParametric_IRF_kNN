@@ -380,6 +380,8 @@ class TVPVAR_beta(sm.tsa.statespace.MLEModel):
                 ['L1.%s->%s' % (other_name, endog_name) for other_name in self.endog_names])
         return state_names.ravel().tolist()
 
+mod_alpha = TVPVAR_alpha(pd.DataFrame(resid, columns=sim_T['data'].columns))
+
 class TVPVAR_alpha(sm.tsa.statespace.MLEModel):
     # Steps 2-3 are best done in the class "constructor", i.e. the __init__ method
     def __init__(self, y):
@@ -402,11 +404,11 @@ class TVPVAR_alpha(sm.tsa.statespace.MLEModel):
         # -> self.k_endog = p is the dimension of the observed vector
         # -> self.k_states = p * (p + 1) is the dimension of the observed vector
         # -> self.nobs = T is the number of observations in y_t
-        self['design'] = np.zeros((self.k_endog, self.k_states, self.nobs))
-        for i in range(self.k_endog):
-            start = i * (self.k_endog + 1)
-            end = start + self.k_endog + 1
-            self['design', i, start:end, :] = z_t.T
+        self['design'] = z_t.T
+        # for i in range(self.k_endog):
+        #     start = i * (self.k_endog + 1)
+        #     end = start + self.k_endog + 1
+        #     self['design', i, start:end, :] = z_t.T
 
         # Construct the transition matrix T = I
         self['transition'] = np.eye(k_states)
@@ -436,7 +438,7 @@ class TVPVAR_alpha(sm.tsa.statespace.MLEModel):
 
 ['alpha' + str(np.tril_indices(3, k=-1)[0][_]+1) + str(np.tril_indices(3, k=-1)[1][_]+1) for _ in range(3)]
 
-sim_T = tvp_simulate(200, 2, 1)
+sim_T = tvp_simulate(200, 3, 1)
 mod = TVPVAR_beta(sim_T['data'])
 
 initial_obs_cov = np.cov(sim_T['data'].T)
