@@ -47,8 +47,8 @@ macro_data.insert(2, 'SPGSCI', SPGSCI)
 macro_data.columns = [
     'Industrial_Production',
     'Unemployment_Rate',
-    'PriceIndex_Producer',
-    'PriceIndex_Consumer',
+    'Commodity_Price_Index',
+    'Consumer_Price_Index',
     'Treasurey3Months'
 ]
 
@@ -111,7 +111,7 @@ interest = [
     "High CPU - Recession",
     "High CPU - Expansion",
     "Low CPU - Recession",
-    "Low CPU - Expansion"][0]
+    "Low CPU - Expansion"][1]
 # histoiOmega(interest)
 
 (histoi, omega) = histoiOmega(interest)
@@ -269,14 +269,25 @@ multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_c
 
 girf_complete = girf_complete*(50/girf.iloc[0,shock])
 
+girf_complete = girf_complete.iloc[:,3:-3]
+multi_index_col = multi_index_col[1:-1]
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+#import scienceplots
 
-plt.figure(figsize = (3.54,3.54))
-gs1 = gridspec.GridSpec(2, 3)
-gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
+ONE_MM = 1 / 25.4  # Convert mm to inches
+
+plt.figure(figsize=(240 * ONE_MM, 140 * ONE_MM), dpi=225) # 85 mm x 70 mm
+plt.rc("legend", fontsize=6)
+plt.rc("font", size=8)
+
+#plt.style.use("science")
+
+gs1 = gridspec.GridSpec(2, 2)
+#gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
 c=0
-for i in range(8):
+for i in range(4):
     ax1 = plt.subplot(gs1[i])
     # plt.axis('on')
     ax1.plot(girf_complete[multi_index_col[c][1]], color='black')
@@ -286,14 +297,11 @@ for i in range(8):
         girf_complete[multi_index_col[c][2]],
         color = 'lightgrey'
     )
-    ax1.set_title(y.columns[c], size = 20)
-    ax1.tick_params(axis="y",direction="in", pad=-10, labelsize=20)
-    ax1.tick_params(axis="x",direction="in", pad=-10, labelsize=20)
+    ax1.set_title(multi_index_col[c][0][0].replace("_", " "))
+#    ax1.tick_params(axis="y",direction="in", pad=-10, labelsize=20)
+#    ax1.tick_params(axis="x",direction="in", pad=-10, labelsize=20)
     c += 1
-plt.suptitle(
-    y.columns[shock] + " shock in " + interest + " periods",
-    fontsize=10
-)
+plt.suptitle("CPU shock in " + interest + " periods")
 plt.tight_layout()
 plt.show()
 
