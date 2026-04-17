@@ -111,7 +111,7 @@ interest = [
     "High CPU - Recession",
     "High CPU - Expansion",
     "Low CPU - Recession",
-    "Low CPU - Expansion"][1]
+    "Low CPU - Expansion"][0]
 # histoiOmega(interest)
 
 (histoi, omega) = histoiOmega(interest)
@@ -272,40 +272,74 @@ girf_complete = girf_complete*(50/girf.iloc[0,shock])
 girf_complete = girf_complete.iloc[:,3:-3]
 multi_index_col = multi_index_col[1:-1]
 
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 #import scienceplots
 
-ONE_MM = 1 / 25.4  # Convert mm to inches
+def girf_plot(girf_var, multi_index_col, title_text):
+    ONE_MM = 1 / 25.4  # Convert mm to inches
 
-plt.figure(figsize=(240 * ONE_MM, 140 * ONE_MM), dpi=225) # 85 mm x 70 mm
-plt.rc("legend", fontsize=6)
-plt.rc("font", size=8)
+    plt.figure(figsize=(240 * ONE_MM, 140 * ONE_MM), dpi=225) # 85 mm x 70 mm
+    plt.rc("legend", fontsize=10)
+    plt.rc("font", size=10)
 
-#plt.style.use("science")
+    #plt.style.use("science")
 
-gs1 = gridspec.GridSpec(2, 2)
-#gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
-c=0
-for i in range(4):
-    ax1 = plt.subplot(gs1[i])
-    # plt.axis('on')
-    ax1.plot(girf_complete[multi_index_col[c][1]], color='black')
-    ax1.fill_between(
-        np.arange(H+1),
-        girf_complete[multi_index_col[c][0]],
-        girf_complete[multi_index_col[c][2]],
-        color = 'lightgrey'
-    )
-    ax1.set_title(multi_index_col[c][0][0].replace("_", " "))
-#    ax1.tick_params(axis="y",direction="in", pad=-10, labelsize=20)
-#    ax1.tick_params(axis="x",direction="in", pad=-10, labelsize=20)
-    c += 1
-plt.suptitle("CPU shock in " + interest + " periods")
-plt.tight_layout()
-plt.show()
+    gs1 = gridspec.GridSpec(2, 2)
+    #gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
+    c=0
+    for i in range(4):
+        ax1 = plt.subplot(gs1[i])
+        # plt.axis('on')
+        ax1.plot(girf_var[multi_index_col[c][1]], color='black')
+        ax1.fill_between(
+            np.arange(H+1),
+            girf_var[multi_index_col[c][0]],
+            girf_var[multi_index_col[c][2]],
+            color = 'lightgrey'
+        )
+        ax1.set_title(multi_index_col[c][0][0].replace("_", " "))
+    #    ax1.tick_params(axis="y",direction="in", pad=-10, labelsize=20)
+    #    ax1.tick_params(axis="x",direction="in", pad=-10, labelsize=20)
+        c += 1
+    plt.suptitle(title_text)
+    plt.tight_layout()
+    plt.show()
 
-
-
-
+girf_plot(girf_complete, multi_index_col, "CPU shock in " + interest + " periods")
 # Do all the macro conditions.
+
+[girf_ip,girf_ur,girf_cm,girf_cp] = [pd.DataFrame(
+    columns = [
+        "High CPU - Recession",
+        "High CPU - Expansion",
+        "Low CPU - Recession",
+        "Low CPU - Expansion"],
+    index = pd.MultiIndex(
+        levels=[range(0,H+1),['lower','GIRF','upper']],
+        codes=[[x//3 for x in range(0,(H+1)*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
+    )
+).unstack() for _ in range(4)]
+
+x = 0
+[girf_ip.iloc[:,x*3:(x+1)*3],girf_ur.iloc[:,x*3:(x+1)*3],girf_cm.iloc[:,x*3:(x+1)*3],girf_cp.iloc[:,x*3:(x+1)*3]] = [girf_complete.iloc[:,_*3:(_+1)*3] for _ in range(4)]
+multi_index_col = [(girf_ip.columns[_], girf_ip.columns[_+1], girf_ip.columns[_+2]) for _ in range(0,12,3)]
+[girf_ip,girf_ur,girf_cm,girf_cp] = [girf_ip.astype('float'),girf_ur.astype('float'),girf_cm.astype('float'),girf_cp.astype('float')]
+
+
+import pickle
+# Saving objects:
+with open('girf.pkl', 'wb') as f:
+    pickle.dump([girf_ip,girf_ur,girf_cm,girf_cp], f)
+
+# Getting back the objects:
+import pickle
+with open('girf.pkl', 'rb') as f:
+    [girf_ip,girf_ur,girf_cm,girf_cp] = pickle.load(f)
+
+
+girf_plot(girf_ip, multi_index_col, "Industrial Production GIRF")
+girf_plot(girf_ur, multi_index_col, "Unemployment Rate GIRF")
+girf_plot(girf_cm, multi_index_col, "Commodity Price Index GIRF")
+girf_plot(girf_cp, multi_index_col, "Consumer Price Index GIRF")
