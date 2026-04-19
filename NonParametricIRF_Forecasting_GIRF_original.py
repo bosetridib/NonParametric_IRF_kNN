@@ -269,8 +269,8 @@ multi_index_col = [(girf_complete.columns[i], girf_complete.columns[i+1], girf_c
 
 girf_complete = girf_complete*(50/girf.iloc[0,shock])
 
-girf_complete = girf_complete.iloc[:,3:-3]
-multi_index_col = multi_index_col[1:-1]
+girf_complete = girf_complete.iloc[:,3:]
+multi_index_col = multi_index_col[1:]
 
 
 import matplotlib.pyplot as plt
@@ -286,10 +286,14 @@ def girf_plot(girf_var, multi_index_col, title_text):
 
     #plt.style.use("science")
 
-    gs1 = gridspec.GridSpec(2, 2)
+    n_var = int(len(girf_var.columns)/3)
+    if n_var == 4:
+        gs1 = gridspec.GridSpec(2, 2)
+    else:
+        gs1 = gridspec.GridSpec(2, 3)
     #gs1.update(wspace=0.2, hspace=0.5) # set the spacing between axes. 
     c=0
-    for i in range(4):
+    for i in range(n_var):
         ax1 = plt.subplot(gs1[i])
         # plt.axis('on')
         ax1.plot(girf_var[multi_index_col[c][1]], color='black')
@@ -310,36 +314,38 @@ def girf_plot(girf_var, multi_index_col, title_text):
 girf_plot(girf_complete, multi_index_col, "CPU shock in " + interest + " periods")
 # Do all the macro conditions.
 
-[girf_ip,girf_ur,girf_cm,girf_cp] = [pd.DataFrame(
-    columns = [
-        "High CPU - Recession",
-        "High CPU - Expansion",
-        "Low CPU - Recession",
-        "Low CPU - Expansion"],
-    index = pd.MultiIndex(
-        levels=[range(0,H+1),['lower','GIRF','upper']],
-        codes=[[x//3 for x in range(0,(H+1)*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
-    )
-).unstack() for _ in range(4)]
+# [girf_ip,girf_ur,girf_cm,girf_cp,girf_ir] = [pd.DataFrame(
+#     columns = [
+#         "High CPU - Recession",
+#         "High CPU - Expansion",
+#         "Low CPU - Recession",
+#         "Low CPU - Expansion"],
+#     index = pd.MultiIndex(
+#         levels=[range(0,H+1),['lower','GIRF','upper']],
+#         codes=[[x//3 for x in range(0,(H+1)*3)],[0,1,2]*(H+1)], names=('Horizon', 'CI')
+#     )
+# ).unstack() for _ in range(5)]
 
 x = 0
-[girf_ip.iloc[:,x*3:(x+1)*3],girf_ur.iloc[:,x*3:(x+1)*3],girf_cm.iloc[:,x*3:(x+1)*3],girf_cp.iloc[:,x*3:(x+1)*3]] = [girf_complete.iloc[:,_*3:(_+1)*3] for _ in range(4)]
-multi_index_col = [(girf_ip.columns[_], girf_ip.columns[_+1], girf_ip.columns[_+2]) for _ in range(0,12,3)]
-[girf_ip,girf_ur,girf_cm,girf_cp] = [girf_ip.astype('float'),girf_ur.astype('float'),girf_cm.astype('float'),girf_cp.astype('float')]
+[girf_ip.iloc[:,x*3:(x+1)*3],girf_ur.iloc[:,x*3:(x+1)*3],girf_cm.iloc[:,x*3:(x+1)*3],girf_cp.iloc[:,x*3:(x+1)*3],girf_ir.iloc[:,x*3:(x+1)*3]] = [girf_complete.iloc[:,_*3:(_+1)*3] for _ in range(5)]
+
+# [girf_ip,girf_ur,girf_cm,girf_cp,girf_ir] = [girf_ip.astype('float'),girf_ur.astype('float'),girf_cm.astype('float'),girf_cp.astype('float'),girf_ir.astype('float')]
 
 
 import pickle
 # Saving objects:
 with open('girf.pkl', 'wb') as f:
-    pickle.dump([girf_ip,girf_ur,girf_cm,girf_cp], f)
+    pickle.dump([girf_ip,girf_ur,girf_cm,girf_cp,girf_ir], f)
 
 # Getting back the objects:
 import pickle
 with open('girf.pkl', 'rb') as f:
-    [girf_ip,girf_ur,girf_cm,girf_cp] = pickle.load(f)
+    [girf_ip,girf_ur,girf_cm,girf_cp,girf_ir] = pickle.load(f)
 
+multi_index_col = [(girf_ip.columns[_], girf_ip.columns[_+1], girf_ip.columns[_+2]) for _ in range(0,12,3)]
 
 girf_plot(girf_ip, multi_index_col, "Industrial Production GIRF")
 girf_plot(girf_ur, multi_index_col, "Unemployment Rate GIRF")
 girf_plot(girf_cm, multi_index_col, "Commodity Price Index GIRF")
 girf_plot(girf_cp, multi_index_col, "Consumer Price Index GIRF")
+girf_plot(girf_ir, multi_index_col, "3-Month Treasury Rate GIRF")
