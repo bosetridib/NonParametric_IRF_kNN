@@ -303,6 +303,8 @@ def girf_plot(girf_var, multi_index_col, title_text):
             girf_var[multi_index_col[c][2]],
             color = 'lightgrey'
         )
+        ax1.axhline(y=0, color='black', linewidth=0.75)
+        ax1.grid(True, which='both', linestyle='-', linewidth=0.5)
         ax1.set_title(multi_index_col[c][0][0].replace("_", " "))
     #    ax1.tick_params(axis="y",direction="in", pad=-10, labelsize=20)
     #    ax1.tick_params(axis="x",direction="in", pad=-10, labelsize=20)
@@ -344,8 +346,8 @@ with open('girf.pkl', 'rb') as f:
 
 multi_index_col = [(girf_ip.columns[_], girf_ip.columns[_+1], girf_ip.columns[_+2]) for _ in range(0,12,3)]
 
-girf_plot(girf_ip, multi_index_col, "Industrial Production GIRF")
-girf_plot(girf_ur, multi_index_col, "Unemployment Rate GIRF")
-girf_plot(girf_cm, multi_index_col, "Commodity Price Index GIRF")
-girf_plot(girf_cp, multi_index_col, "Consumer Price Index GIRF")
-girf_plot(girf_ir, multi_index_col, "3-Month Treasury Rate GIRF")
+girf_plot(girf_ip, multi_index_col, "Industrial Production GIRF (in cumulative %)")
+girf_plot(girf_ur, multi_index_col, "Unemployment Rate GIRF (in points)")
+girf_plot(girf_cm, multi_index_col, "Commodity Price Index GIRF (in cumulative %)")
+girf_plot(girf_cp, multi_index_col, "Consumer Price Index GIRF (in cumulative %)")
+girf_plot(girf_ir, multi_index_col, "3-Month Treasury Rate GIRF (in points)")
