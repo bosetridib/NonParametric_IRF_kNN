@@ -276,10 +276,10 @@ def knn_irf(sim_elements, t=20, impulse=0):
 
     return {'girf': girf, 'girf_complete': girf_complete}
 
-sim_T = tvp_simulate(200, 2, 1)
-tvp_irf(sim_T)
-knn_irf(sim_T)['girf']
-tvp_irf(sim_T) - knn_irf(sim_T)['girf']
+# sim_T = tvp_simulate(200, 2, 1)
+# tvp_irf(sim_T)
+# knn_irf(sim_T)['girf']
+# tvp_irf(sim_T) - knn_irf(sim_T)['girf']
 # kirf = knn_irf(sim_T)
 # girf_lower = pd.DataFrame([kirf['girf_complete'].loc[_,'lower'] for _ in range(0,11)]).reset_index(drop=True).T
 # girf = pd.DataFrame([kirf['girf_complete'].loc[_,'GIRF'] for _ in range(0,11)]).reset_index(drop=True).T
@@ -361,11 +361,29 @@ class TVPVAR_beta(sm.tsa.statespace.MLEModel):
         self['selection'] = np.eye(k_states)
 
         # Step 3: Initialize the state vector as alpha_1 ~ N(0, 5I)
-        self.ssm.initialize('known', stationary_cov=5 * np.eye(self.k_states))
+        self.ssm.initialize('known', stationary_cov= np.eye(k_states))
 
     # Step 4. Create a method that we can call to update H and Q
-    def update_variances(self, obs_cov, state_cov_diag):
-        self['obs_cov'] = obs_cov
+    def update_variances(self, a_t, state_cov_diag):
+        T = self.nobs
+        p = self.endog.shape[1]
+        
+        for t in range(T):
+            # 1. Reconstruct A_t: Lower triangular with unit diagonal (Nakajima p. 125)
+            At = np.eye(p)
+            # Example for a 3-variable system: filling off-diagonals a_21, a_31, a_32
+            # At[5] = a_t[0, t]
+            # At[6] = a_t[1, t]
+            # At[5, 6] = a_t[2, t]
+            # (Generic logic to map a_t vector to lower triangle goes here)
+            At[np.tril_indices(p, k=-1)] = a_t[:, t]
+            # 2. Reconstruct Sigma_t: Diagonal matrix of exp(h_t) (Nakajima eq 8)
+            Sigmat = np.eye(p)
+            # 3. Compute Reduced-form H_t = inv(At) @ Sigmat @ inv(At).T
+            InvAt = np.linalg.inv(At)
+            self['obs_cov'][:, :, t] = InvAt @ Sigmat @ InvAt.T
+
+        # self['obs_cov'] = obs_cov   # H matrix
         self['state_cov'] = np.diag(state_cov_diag)
 
     # Finally, it can be convenient to define human-readable names for
@@ -380,66 +398,43 @@ class TVPVAR_beta(sm.tsa.statespace.MLEModel):
                 ['L1.%s->%s' % (other_name, endog_name) for other_name in self.endog_names])
         return state_names.ravel().tolist()
 
-mod_alpha = TVPVAR_alpha(pd.DataFrame(resid, columns=sim_T['data'].columns))
-
 class TVPVAR_alpha(sm.tsa.statespace.MLEModel):
-    # Steps 2-3 are best done in the class "constructor", i.e. the __init__ method
-    def __init__(self, y):
-        # Create a matrix with [y_t' : y_{t-1}'] for t = 2, ..., T
-        # augmented = sm.tsa.lagmat(y, 1, trim='both', original='in', use_pandas=True)
-        # Separate into y_t and z_t = [1 : y_{t-1}']
-        p = y.shape[1]
-        residual_t = y.copy()
-        z_t = pd.concat([pd.Series(0, index=y.index, name='const'), -residual_t.iloc[:, :-1]], axis=1)
+    def __init__(self, residuals):
+        # p is the number of variables in the VAR
+        p = residuals.shape[1]
+        # Number of off-diagonal elements in the lower-triangular matrix A_t
+        k_a = p * (p - 1) // 2
 
-        # Recall that the length of the state vector is p * (p + 1)
-        k_states = int(p * (p - 1) / 2)
-        super().__init__(residual_t, exog=z_t, k_states=k_states)
+        super().__init__(residuals, k_states=k_a)
+        
+        # 1. Transition equation: Random walk for a_t (Nakajima eq 8)
+        self['transition'] = np.eye(k_a)
+        self['selection'] = np.eye(k_a)
+        
+        # 2. Design matrix Z_t: Built from residuals as shown in Nakajima p.126
+        # This matrix links the residuals to the structural states a_t
+        self['design'] = np.zeros((p, self.k_states, self.nobs))
+        for t in range(self.nobs):
+            z_t = np.zeros((p, self.k_states))
+            idx = 0
+            for i in range(1, p):
+                # Equation i depends on residuals of variables 0 to i-1
+                z_t[i, idx:idx+i] = -residuals.iloc[t, 0:i]
+                idx += i
+            self['design'][ :, :, t] = z_t
 
-        # Note that the state space system matrices default to contain zeros,
-        # so we don't need to explicitly set c_t = d_t = 0.
-
-        # Construct the design matrix Z_t
-        # Notes:
-        # -> self.k_endog = p is the dimension of the observed vector
-        # -> self.k_states = p * (p + 1) is the dimension of the observed vector
-        # -> self.nobs = T is the number of observations in y_t
-        self['design'] = z_t.T
-        # for i in range(self.k_endog):
-        #     start = i * (self.k_endog + 1)
-        #     end = start + self.k_endog + 1
-        #     self['design', i, start:end, :] = z_t.T
-
-        # Construct the transition matrix T = I
-        self['transition'] = np.eye(k_states)
-
-        # Construct the selection matrix R = I
-        self['selection'] = np.eye(k_states)
-
-        # Step 3: Initialize the state vector as alpha_1 ~ N(0, 5I)
-        self.ssm.initialize('known', stationary_cov= np.eye(self.k_states))
-
-    # Step 4. Create a method that we can call to update H and Q
-    def update_variances(self, obs_cov, state_cov_diag):
-        self['obs_cov'] = obs_cov
-        self['state_cov'] = np.diag(state_cov_diag)
-
-    # Finally, it can be convenient to define human-readable names for
-    # each element of the state vector. These will be available in output
-    @property
-    def state_names(self):
-        state_names = [
-            'alpha' +
-            str(np.tril_indices(self.k_endog, k=-1)[0][_]+1) +
-            str(np.tril_indices(self.k_endog, k=-1)[1][_]+1)
-            for _ in range(self.k_endog)
-        ]
-        return state_names
+    def update_system(self, H_a, Q_a):
+        """Updates structural variances (Sigma_t) and state innovation covariance."""
+        # Observation covariance H_t is diagonal: diag(exp(h_t))
+        self['obs_cov'] = H_a
+        # State covariance for the random walk of a_t
+        self['state_cov'] = Q_a
 
 ['alpha' + str(np.tril_indices(3, k=-1)[0][_]+1) + str(np.tril_indices(3, k=-1)[1][_]+1) for _ in range(3)]
 
 sim_T = tvp_simulate(200, 3, 1)
 mod = TVPVAR_beta(sim_T['data'])
+mod_a = TVPVAR_alpha(pd.DataFrame(np.random.randn(3,200).transpose(), columns=sim_T['data'].columns))
 
 initial_obs_cov = np.cov(sim_T['data'].T)
 initial_state_cov_diag = [0.01] * mod.k_states
@@ -468,7 +463,9 @@ store_state_cov[0] = initial_state_cov_diag
 mod.update_variances(store_obs_cov[0], store_state_cov[0])
 
 # 3. Construct posterior samplers
-sim = mod.simulation_smoother(method='cfa')
+sim = mod.simulation_smoother(method='kfs')
+sim_a = mod_a.simulation_smoother(method='kfs')
+
 
 v10 = mod.k_endog + 3
 S10 = np.eye(mod.k_endog)
@@ -488,8 +485,6 @@ for i in range(niter):
     fitted = np.matmul(mod['design'].transpose(2, 0, 1), store_states[i + 1][..., None])[..., 0]
     resid = mod.endog - fitted
     store_obs_cov[i + 1] = invwishart.rvs(v10 + mod.nobs, S10 + resid.T @ resid)
-
-    mod_alpha = TVPVAR_alpha(pd.DataFrame(resid, columns=sim_T['data'].columns))
 
     # 3. Simulate state cov variances
     resid = store_states[i + 1, 1:] - store_states[i + 1, :-1]
