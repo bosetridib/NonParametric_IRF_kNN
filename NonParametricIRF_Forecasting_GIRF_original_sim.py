@@ -360,6 +360,8 @@ class TVPVAR_beta(sm.tsa.statespace.MLEModel):
         # Construct the selection matrix R = I
         self['selection'] = np.eye(k_states)
 
+        self['obs_cov'] = np.zeros((p, p, self.nobs))
+
         # Step 3: Initialize the state vector as alpha_1 ~ N(0, 5I)
         self.ssm.initialize('known', stationary_cov= np.eye(k_states))
 
@@ -381,10 +383,10 @@ class TVPVAR_beta(sm.tsa.statespace.MLEModel):
             Sigmat = np.eye(p)
             # 3. Compute Reduced-form H_t = inv(At) @ Sigmat @ inv(At).T
             InvAt = np.linalg.inv(At)
-            self['obs_cov'][:, :, t] = InvAt @ Sigmat @ InvAt.T
+            self['obs_cov', :, :, t] = InvAt @ Sigmat @ InvAt.T
 
         # self['obs_cov'] = obs_cov   # H matrix
-        self['state_cov'] = np.diag(state_cov_diag)
+        self['state_cov'] = state_cov_diag
 
     # Finally, it can be convenient to define human-readable names for
     # each element of the state vector. These will be available in output
@@ -414,39 +416,48 @@ class TVPVAR_alpha(sm.tsa.statespace.MLEModel):
         # 2. Design matrix Z_t: Built from residuals as shown in Nakajima p.126
         # This matrix links the residuals to the structural states a_t
         self['design'] = np.zeros((p, self.k_states, self.nobs))
+        self.update_design(residuals)
+
+        self.ssm.initialize('known', stationary_cov= np.eye(k_a))
+
+    def update_design(self, residuals):
+        """Fills the Z_t matrix with negative residuals to reflect recursive form."""
+        p = self.endog.shape[1]
         for t in range(self.nobs):
             z_t = np.zeros((p, self.k_states))
             idx = 0
             for i in range(1, p):
                 # Equation i depends on residuals of variables 0 to i-1
-                z_t[i, idx:idx+i] = -residuals.iloc[t, 0:i]
+                z_t[i, idx:idx+i] = -residuals[t, 0:i]
                 idx += i
-            self['design'][ :, :, t] = z_t
+            self['design', :, :, t] = z_t
 
     def update_system(self, H_a, Q_a):
         """Updates structural variances (Sigma_t) and state innovation covariance."""
         # Observation covariance H_t is diagonal: diag(exp(h_t))
-        self['obs_cov'] = H_a
+        self['obs_cov'] = np.diag(H_a)
         # State covariance for the random walk of a_t
-        self['state_cov'] = Q_a
+        self['state_cov'] = np.diag(Q_a)
 
 ['alpha' + str(np.tril_indices(3, k=-1)[0][_]+1) + str(np.tril_indices(3, k=-1)[1][_]+1) for _ in range(3)]
 
 sim_T = tvp_simulate(200, 3, 1)
 mod = TVPVAR_beta(sim_T['data'])
-mod_a = TVPVAR_alpha(pd.DataFrame(np.random.randn(3,200).transpose(), columns=sim_T['data'].columns))
+mod_a = TVPVAR_alpha(np.zeros_like(mod.endog))
 
-initial_obs_cov = np.cov(sim_T['data'].T)
-initial_state_cov_diag = [0.01] * mod.k_states
+# initial_obs_cov = np.cov(sim_T['data'])
+initial_obs_cov = np.array(np.cov(sim_T['data'].T).tolist()*mod.nobs).reshape((mod.nobs,3,3)).transpose(1,2,0)
+alpha_t_init = np.array([random_walk(mod.nobs, 0.01**0.5) for _ in range(mod_a.k_states)])
 
+initial_state_cov_diag = 0.01 * np.eye(mod.k_states)
 # Update H and Q
-mod.update_variances(initial_obs_cov, initial_state_cov_diag)
+# mod.update_variances(alpha_t_init, initial_state_cov_diag)
 
 # Perform Kalman filtering and smoothing
 # (the [] is just an empty list that in some models might contain
 # additional parameters. Here, we don't have any additional parameters
 # so we just pass an empty list)
-initial_res = mod.smooth([])
+# initial_res = mod.smooth([])
 
 # Gibbs sampler setup
 niter = 11000
@@ -454,13 +465,19 @@ nburn = 1000
 
 # 1. Create storage arrays
 store_states = np.zeros((niter + 1, mod.nobs, mod.k_states))
-store_obs_cov = np.zeros((niter + 1, mod.k_endog, mod.k_endog))
-store_state_cov = np.zeros((niter + 1, mod.k_states))
+store_obs_cov = np.zeros((niter + 1, mod_a.k_states,  mod.nobs))
+store_state_cov = np.zeros((niter + 1, mod.k_states, mod.k_states))
+
+store_states_a = np.zeros((niter + 1, mod_a.nobs, mod_a.k_states))
+store_obs_cov_a = np.zeros((niter + 1, mod_a.k_endog))
+store_state_cov_a = np.zeros((niter + 1, mod_a.k_states))
 
 # 2. Put in the initial values
-store_obs_cov[0] = initial_obs_cov
+store_obs_cov[0] = alpha_t_init
 store_state_cov[0] = initial_state_cov_diag
-mod.update_variances(store_obs_cov[0], store_state_cov[0])
+# mod.update_variances(store_obs_cov[0], store_state_cov[0])
+store_obs_cov_a[0] = mod_a.k_endog*[0.01]
+store_state_cov_a[0] = mod_a.k_states*[0.01]
 
 # 3. Construct posterior samplers
 sim = mod.simulation_smoother(method='kfs')
@@ -471,13 +488,147 @@ v10 = mod.k_endog + 3
 S10 = np.eye(mod.k_endog)
 
 # Prior for state cov. variances is inverse-Gamma(v_{i2}^0 / 2 = 3, S+{i2}^0 / 2 = 0.005)
-vi20 = 1
+vi20 = 6
 Si20 = 0.01
+
+# Initialize all
+i = 0
+
+mod.update_variances(store_obs_cov[i], store_state_cov[i])
+
+# Sample Beta
+sim.simulate()
+
+store_states[i + 1] = sim.simulated_state.T
+
+fitted = np.matmul(mod['design'].transpose(2, 0, 1), store_states[i + 1][..., None])[..., 0]
+resid = mod.endog - fitted
+
+# np.diff computes alpha_{t+1} - alpha_t
+innovations = np.diff(store_states[i + 1], axis=0) # Result shape: (k_states, T-1)
+
+# 2. Compute the sum of squared innovations (Sum of outer products)
+# This corresponds to Nakajima eq. 5 (Scale matrix update)
+sum_sq_innovations = innovations.T @ innovations
+
+# 3. Define posterior parameters (Nakajima p. 125, eq. 5)
+# prior_nu and prior_S are your chosen hyperparameters (e.g., T+3 and Identity)
+post_df = 15 + (mod.nobs - 1)
+post_scale = 0.01 * np.eye(mod.k_states) + sum_sq_innovations
+
+# 4. Draw the new SIGMA_beta (state_cov) matrix
+# This generates a (k_states x k_states) matrix
+# current_Q_alpha = invwishart.rvs(df=post_df, scale=post_scale)
+
+# 5. Update the model instance for the next iteration
+# This ensures the KFS smoother uses the updated state_cov
+
+# Sample Sigma_Beta
+store_state_cov[i + 1] = invwishart.rvs(df=post_df, scale=post_scale)
+
+
+# Sample alpha
+
+mod_a.update_design(resid)
+
+mod_a.update_system(store_obs_cov_a[i], store_state_cov_a[i])
+
+sim_a.simulate()
+store_states_a[i + 1] = sim_a.simulated_state.T
+
+# Sample Sigma_alpha
+
+# 1. Calculate innovations for structural relations
+# current_a shape: (k_a, T) where k_a = p*(p-1)/2
+diff_a = np.diff(store_states_a[i + 1], axis=0) # Shape: (k_a, T-1)
+
+# 2. Define priors (Nakajima p. 132 suggests v0=4, S0=0.01 for diffuse prior)
+v0_a = 4.0
+S0_a = 0.01
+
+# 3. Sample each diagonal element from Inverse-Gamma
+# Nakajima Step 4 (p. 135) / Step 6 (p. 127) logic
+current_sigma_a_diag = np.zeros(mod_a.k_states)
+for j in range(mod_a.k_states):
+    # Sum of squared differences for the j-th structural relation
+    ss_a_j = np.sum(diff_a[j, :]**2)
+    # Calculate posterior parameters
+    post_v_a = v0_a + (mod_a.nobs - 1) / 2.0
+    post_S_a = (S0_a + ss_a_j) / 2.0
+    # Sample from IG
+    current_sigma_a_diag[j] = invgamma.rvs(post_v_a, scale=post_S_a)
+
+# 4. Update the structural relations model instance
+store_state_cov_a[i + 1] = current_sigma_a_diag
+
+store_obs_cov[i + 1] = store_states_a[i + 1].T
+
+# --- 1. SET PRIOR VALUES (Based on Nakajima) ---
+# Innovation Variances (Tight for alpha, Diffuse for a)
+v0_alpha, S0_alpha = 20.0, 0.01
+v0_a, S0_a = 4.0, 0.01
+
+# Constant Structural Variances (Diffuse prior for Sigma diagonal)
+# v0_sigma=0.01, S0_sigma=0.01 represents a very flat/diffuse prior
+v0_sigma, S0_sigma = 0.01, 0.01
+
+# --- 2. INITIALIZE STRUCTURAL IMPACT MODEL (mod_a) ---
+# T: number of observations, p: number of endog variables
+# k_a = p * (p - 1) // 2
+
+
+# Initialize the diagonal obs_cov with an identity matrix or sample covariance
+current_sigma_diag = np.ones(mod_a.k_endog) * 0.1 
+
+# --- 3. SAMPLING THE DIAGONAL OBS_COV IN MCMC LOOP ---
+
+# (Step A: Update and sample alpha_t and a_t as shown in previous turns)
+
+# STEP B: Sample the constant diagonal obs_cov (Sigma)
+# 1. Calculate structural shocks: e_t = A_t * residuals_t
+# structural_shocks = calculate_structural_shocks(current_residuals, current_a)
+structural_shocks = np.zeros_like(resid)
+for t in range(mod_a.nobs):
+    # 1. Reconstruct A_t: Lower triangular with unit diagonal (Nakajima p. 125)
+    At = np.eye(mod_a.k_endog)
+    # Example for a 3-variable system: filling off-diagonals a_21, a_31, a_32
+    # At[5] = a_t[0, t]
+    # At[6] = a_t[1, t]
+    # At[5, 6] = a_t[2, t]
+    # (Generic logic to map a_t vector to lower triangle goes here)
+    At[np.tril_indices(mod_a.k_endog, k=-1)] = store_states_a[i + 1][t, :]
+    # 2. Reconstruct Sigma_t: Diagonal matrix of exp(h_t) (Nakajima eq 8)
+    Sigmat = np.eye(mod_a.k_endog)
+    # 3. Compute Reduced-form H_t = inv(At) @ Sigmat @ inv(At).T
+    structural_shocks[t] = At @ resid[t, :]
+
+# 2. Draw each diagonal element sigma_i^2 from Inverse-Gamma
+for j in range(mod_a.k_endog):
+    # Sum of squared structural shocks for variable j
+    ss_e_j = np.sum(structural_shocks[:, j]**2)
+    
+    # Calculate posterior parameters (Nakajima Section III.C logic)
+    post_v_sigma = (v0_sigma + mod_a.nobs) / 2.0
+    post_S_sigma = (S0_sigma + ss_e_j) / 2.0
+    
+    current_sigma_diag[j] = invgamma.rvs(post_v_sigma, scale=post_S_sigma)
+
+store_obs_cov_a[i + 1] = current_sigma_diag
+# 3. Update the structural model's obs_cov for the next iteration
+# It is a constant diagonal matrix (no stochastic volatility)
+
+
+# (Step C: Sample innovation variances Q_alpha and Q_a using Nakajima priors)
+# Draw Q_a diagonal elements using v0_a and S0_a
+
+
+
+
 
 for i in range(niter):
     mod.update_variances(store_obs_cov[i], store_state_cov[i])
     sim.simulate()
-
+    
     # 1. Sample states
     store_states[i + 1] = sim.simulated_state.T
 
@@ -486,9 +637,16 @@ for i in range(niter):
     resid = mod.endog - fitted
     store_obs_cov[i + 1] = invwishart.rvs(v10 + mod.nobs, S10 + resid.T @ resid)
 
+    mod_a.update_design(resid)
+    mod_a.update_system(np.eye(mod_a.k_states), np.eye(mod_a.k_states)*0.01)
+
     # 3. Simulate state cov variances
     resid = store_states[i + 1, 1:] - store_states[i + 1, :-1]
     sse = np.sum(resid**2, axis=0)
+
+    sim_a.simulate()
+    store_states_a[i + 1] = sim_a.simulated_state.T
+    current_a = sim_a.simulated_state.T
 
     for j in range(mod.k_states):
         rv = invgamma.rvs((vi20 + mod.nobs - 1) / 2, scale=(Si20 + sse[j]) / 2)
