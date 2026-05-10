@@ -638,7 +638,7 @@ with open('objs.pkl', 'rb') as f:
     bias = pickle.load(f)
 
 
-bias_avg = [np.absolute(_['bias']).mean() for _ in bias]
+bias_avg = [np.absolute(_['bias_knn']).mean() for _ in bias]
 bias_avg = sum(bias_avg)/len(bias_avg)
 bias_avg_tvp = [np.absolute(_['bias_tvp']).mean() for _ in bias]
 bias_avg_tvp = sum(bias_avg_tvp)/len(bias_avg_tvp)
@@ -646,7 +646,7 @@ bias_avg_tvp = sum(bias_avg_tvp)/len(bias_avg_tvp)
 bias_avg.plot(); plt.show()
 bias_avg_tvp.plot(); plt.show()
 
-rmse_avg = [np.absolute(_['bias']).mean()**2 for _ in bias]
+rmse_avg = [np.absolute(_['bias_knn']).mean()**2 for _ in bias]
 rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
 rmse_avg_tvp = [np.absolute(_['bias_tvp']).mean()**2 for _ in bias]
 rmse_avg_tvp = ((sum(rmse_avg_tvp)/len(rmse_avg_tvp)))**0.5
@@ -657,13 +657,13 @@ rmse_avg_tvp.plot(); plt.show()
 # n_var: 2,3,4: n_obs: 200,400,600,800,1000: n_lags:1,2,3,4
 # Separate bias list by n_var
 bias_avg_var = [[_ for _ in bias if _['k'] == count] for count in range(2,5)]
-bias_avg_var = [[np.absolute(b['bias']).mean() for b in _] for _ in bias_avg_var]
+bias_avg_var = [[np.absolute(b['bias_knn']).mean() for b in _] for _ in bias_avg_var]
 bias_avg_var = [sum(_)/len(_) for _ in bias_avg_var]
 bias_avg_var = pd.DataFrame([_ for _ in bias_avg_var], index=[_ for _ in range(2,5)]).T
 bias_avg_var.plot();plt.show()
 
 rmse_avg_var = [[_ for _ in bias if _['k'] == count] for count in range(2,5)]
-rmse_avg_var = [[np.absolute(b['bias']).mean()**2 for b in _] for _ in rmse_avg_var]
+rmse_avg_var = [[np.absolute(b['bias_knn']).mean()**2 for b in _] for _ in rmse_avg_var]
 rmse_avg_var = [(sum(_)/len(_))**0.5 for _ in rmse_avg_var]
 rmse_avg_var = pd.DataFrame([_ for _ in rmse_avg_var], index=[_ for _ in range(2,5)]).T
 rmse_avg_var.plot();plt.show()
@@ -671,39 +671,39 @@ rmse_avg_var.plot();plt.show()
 # Separate bias list by n_obs
 # n_obs: 200 = n_var:2,3,4 & 200 obs used in n_lags: 1,2,3,4; and so on
 # so, each n_obs is repeated
-bias_avg_T = [[_ for _ in bias if _['T'] == count*200] for count in range(1,4)]
-bias_avg_T = [[np.absolute(b['bias']).mean() for b in _] for _ in bias_avg_T]
+bias_avg_T = [[_ for _ in bias if _['T'] == count*200] for count in range(1,6)]
+bias_avg_T = [[np.absolute(b['bias_knn']).mean() for b in _] for _ in bias_avg_T]
 bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
-bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,4)]).T
-bias_avg_T_tvp = [[_ for _ in bias if _['T'] == count*200] for count in range(1,4)]
+bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[_*200 for _ in range(1,6)]).T
+bias_avg_T_tvp = [[_ for _ in bias if _['T'] == count*200] for count in range(1,6)]
 bias_avg_T_tvp = [[np.absolute(b['bias_tvp']).mean() for b in _] for _ in bias_avg_T_tvp]
 bias_avg_T_tvp = [sum(_)/len(_) for _ in bias_avg_T_tvp]
-bias_avg_T_tvp = pd.DataFrame([_ for _ in bias_avg_T_tvp], index=[_*200 for _ in range(1,4)]).T
+bias_avg_T_tvp = pd.DataFrame([_ for _ in bias_avg_T_tvp], index=[_*200 for _ in range(1,6)]).T
 
 bias_avg_T.plot(); plt.show()
 bias_avg_T_tvp.plot(); plt.show()
 
-rmse_avg_T = [[_ for _ in bias if _['T'] == count*200] for count in range(1,4)]
-rmse_avg_T = [[np.absolute(b['bias']).mean()**2 for b in _] for _ in rmse_avg_T]
+rmse_avg_T = [[_ for _ in bias if _['T'] == count*200] for count in range(1,6)]
+rmse_avg_T = [[np.absolute(b['bias_knn']).mean()**2 for b in _] for _ in rmse_avg_T]
 rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
-rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,4)]).T
-rmse_avg_T_tvp = [[_ for _ in bias if _['T'] == count*200] for count in range(1,4)]
+rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[_*200 for _ in range(1,6)]).T
+rmse_avg_T_tvp = [[_ for _ in bias if _['T'] == count*200] for count in range(1,6)]
 rmse_avg_T_tvp = [[np.absolute(b['bias_tvp']).mean()**2 for b in _] for _ in rmse_avg_T_tvp]
 rmse_avg_T_tvp = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T_tvp]
-rmse_avg_T_tvp = pd.DataFrame([_ for _ in rmse_avg_T_tvp], index=[_*200 for _ in range(1,4)]).T
+rmse_avg_T_tvp = pd.DataFrame([_ for _ in rmse_avg_T_tvp], index=[_*200 for _ in range(1,6)]).T
 
 rmse_avg_T.plot(); plt.show()
 rmse_avg_T_tvp.plot(); plt.show()
 
 # Separate bias list by n_lags
 bias_avg_p = [[_ for _ in bias if _['p'] == count] for count in range(1,5)]
-bias_avg_p = [[np.absolute(b['bias']).mean() for b in _] for _ in bias_avg_p]
+bias_avg_p = [[np.absolute(b['bias_knn']).mean() for b in _] for _ in bias_avg_p]
 bias_avg_p = [sum(_)/len(_) for _ in bias_avg_p]
 bias_avg_p = pd.DataFrame([_ for _ in bias_avg_p], index=[_ for _ in range(1,5)]).T
 bias_avg_p.plot(); plt.show()
 
 rmse_avg_p = [[_ for _ in bias if _['p'] == count] for count in range(1,5)]
-rmse_avg_p = [[np.absolute(b['bias']).mean()**2 for b in _] for _ in rmse_avg_p]
+rmse_avg_p = [[np.absolute(b['bias_knn'][h]).mean()**2 for b in _] for _ in rmse_avg_p]
 rmse_avg_p = [(sum(_)/len(_))**0.5 for _ in rmse_avg_p]
 rmse_avg_p = pd.DataFrame([_ for _ in rmse_avg_p], index=[_ for _ in range(1,5)]).T
 rmse_avg_p.plot(); plt.show()
@@ -716,35 +716,37 @@ tab_bias = tab.copy()
 tab_rmse = tab.copy()
 tab_CR = tab.copy()
 
-tab_CR_T = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,4)])
+tab_CR_T = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,6)])
 
 tab_bias_tvp = tab.copy()
 tab_rmse_tvp = tab.copy()
 tab_CR_tvp = tab.copy()
 
-tab_CR_T_tvp = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,4)])
+tab_CR_T_tvp = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,6)])
 
 for n_var in range(2,5):
     for n_lags in range(1,5):
         for h in range(0,11):
-            bias_h = [np.absolute(b['bias'][h]).mean() for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)]
+            bias_h = [np.absolute(b['bias_knn'][h]).mean() for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)]
             bias_h = sum(bias_h)/len(bias_h)
             tab_bias.loc[(n_var, n_lags), h] = bias_h
 
-            rmse_h = [np.absolute(b['bias'][h]).mean()**2 for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)]
+            rmse_h = [np.absolute(b['bias_knn'][h]).mean()**2 for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)]
             rmse_h = (sum(rmse_h)/len(rmse_h))**0.5
             tab_rmse.loc[(n_var, n_lags), h] = rmse_h
 
             coverage_h = [(b['ci_l'][h].values < b['tvp_irf'][h].values) & (b['tvp_irf'][h].values <= b['ci_u'][h].values) for b in bias if (b['k'] == n_var) & (b['p'] == n_lags)]
             tab_CR.loc[(n_var, n_lags), h] = np.mean(coverage_h)
 
-for n_obs in [_*200 for _ in range(1,4)]:
+for n_obs in [_*200 for _ in range(1,6)]:
     for h in range(0,11):
         coverage_h_T = [np.mean((b['ci_l'][h].values < b['tvp_irf'][h].values) & (b['tvp_irf'][h].values <= b['ci_u'][h].values)) for b in bias if (b['T'] == n_obs)]
         tab_CR_T.loc[n_obs, h] = np.mean(coverage_h_T)
         coverage_h_T_tvp = [np.mean((b['tvp_ci_l'][h].values < b['tvp_irf'][h].values) & (b['tvp_irf'][h].values <= b['tvp_ci_u'][h].values)) for b in bias if (b['T'] == n_obs)]
         tab_CR_T_tvp.loc[n_obs, h] = np.mean(coverage_h_T_tvp)
 
+plt.plot((tab_CR_T - tab_CR_T_tvp).T/tab_CR_T_tvp.T); plt.show()
+plt.plot(tab_CR_T.T - tab_CR_T_tvp.T); plt.show()
 
 print(tab_bias[[0,2,8]].to_latex(float_format="%.2f"))
 print(tab_rmse[[0,2,8]].to_latex(float_format="%.2f"))
@@ -759,5 +761,6 @@ print(tab_bias[[0,2,8]].to_latex(float_format="%.2f"))
 print(tab_rmse[[0,2,8]].to_latex(float_format="%.2f"))
 print(tab_CR[[2,4,8]].to_latex(float_format="%.2f"))
 
-print(tab_CR_T[[2,4,8]].to_latex(float_format="%.2f"))
+print(tab_CR_T[[2,4,8]].to_latex(float_format="%.4f"))
+print(tab_CR_T_tvp[[2,4,8]].to_latex(float_format="%.4f"))
 # Exit
