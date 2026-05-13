@@ -20,17 +20,17 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Function to generate random walk
-def random_walk(T, scl):
+def random_walk(T, scl, c=4):
     #e_t = np.random.normal(size=T, scale=scl)
     e_t = np.random.normal(size=T, scale=scl)
     rw_t = np.zeros(T)
     rw_t[0] = e_t[0]
     for i in range(1,T):
-        rw_t[i] = rw_t[i-1] + e_t[i]
+        rw_t[i] = rw_t[i-1] + e_t[i]*(c/T)
     return rw_t
 
 # Function to generate Y_tvp
-def tvp_simulate(n_obs = 200, n_var = 2, n_lags = 2, intercept = 1):
+def tvp_simulate(n_obs = 200, n_var = 2, n_lags = 2, intercept = 1, c = 4):
     # number of observations, variables, and lags
 
     # Define Y_TVP: we also initialize it with the minimum number
@@ -41,9 +41,7 @@ def tvp_simulate(n_obs = 200, n_var = 2, n_lags = 2, intercept = 1):
         columns=['y'+str(c_num) for c_num in range(1,n_var+1)]
     )
     # Define variances of B_t and A_t
-    var_alpha = 1
     var_beta = 1
-    c = 4
     # Define epsilon - the vector of error terms.
     epsilon_sim = np.array([np.random.normal(size=n_obs) for _ in range(n_var)])
 
@@ -87,8 +85,8 @@ def tvp_simulate(n_obs = 200, n_var = 2, n_lags = 2, intercept = 1):
         t += 1
         if stuck > 10000: return 'stuck'
     # Define alpha matrix for A_t matrix (shocks)
-    # var_alpha = 0.5/100
-    alpha_t = np.array([random_walk(n_obs, var_alpha**0.5) for _ in range(np.int64((n_var*(n_var - 1))/2))])*(c/n_obs)
+    var_alpha = 1
+    alpha_t = np.array([random_walk(n_obs, var_alpha**0.5, c) for _ in range(n_var*(n_var - 1)//2)])
 
     for t in range(n_obs):
         # We form the matrices/vectors at time t.
@@ -420,7 +418,7 @@ def tvp_irf_bayesian(tvp_estimates, t=20, impulse=0):
         'alpha_t': tvp_estimates['alpha_t_complete'][_].T,
         'n_var': tvp_estimates['n_var'],
         'n_lags': tvp_estimates['n_lags']
-    }, t=t-1, impulse=impulse) for _ in range(tvp_estimates['iterations'])]
+    }, t=t-tvp_estimates['n_lags'], impulse=impulse) for _ in range(tvp_estimates['iterations'])]
     tvp_irf_complete = pd.DataFrame(
         columns = tvp_estimates['data'].columns,
         index = pd.MultiIndex(
@@ -556,7 +554,7 @@ def knn_irf(sim_elements, t=20, impulse=0):
 sim_T = tvp_simulate(200, 3, 1)
 tvp_irf(sim_T)
 tvp_est = tvp_bayesian_estimation(sim_T, niter=1100, nburn=100)
-tvp_irf_bayesian(tvp_est, t=80, impulse=0)
+tvp_irf_bayesian(tvp_est, t=20, impulse=0)
 
 
 sim_T['B_mat']
@@ -574,14 +572,14 @@ knn_irf(sim_T)['girf_complete'].loc[1,'GIRF']
 
 # Begin simulations
 
-n_sim = 25
+n_sim = 50
 bias = []
 
-for n_obs in [_*200 for _ in range(1,6)]:
-    n_var = 3; n_lags = 1
-    counter = 0
+for n_obs in [200, 500, 1000]:
+    n_var = 3; n_lags = 1; c_sim = 1
+    counter = 1
     while counter < n_sim:
-        sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1)
+        sim = tvp_simulate(n_obs, n_var, n_lags, intercept=1, c = c_sim)
         # TVP-VAR Bayesian estimation
         tvp_est_sim = tvp_bayesian_estimation(sim, niter=1100, nburn=100)
 
@@ -604,7 +602,7 @@ for n_obs in [_*200 for _ in range(1,6)]:
                         'bias_knn' : girf - tvp_irf(sim).T,
                         'bias_tvp' : tvp_irf_mid - tvp_irf(sim).T,
                         'tvp_irf' : tvp_irf(sim).T,
-                        'T': n_obs, 't' : t,
+                        'T': n_obs, 't' : t, 'c': c_sim,
                         'ci_l' : girf_lwr, 'ci_u' : girf_upr,
                         'tvp_ci_l' : tvp_irf_lwr, 'tvp_ci_u' : tvp_irf_upr
                     })
@@ -625,34 +623,70 @@ for n_obs in [_*200 for _ in range(1,6)]:
 
 n_obs = 200; n_var = 3; n_lags = 1; intercept = 1
 
-
-import pickle
-# Saving objects:
-with open('objs.pkl', 'wb') as f:
-    pickle.dump(bias, f)
+# import pickle
+# # Saving objects:
+# with open('objs.pkl', 'wb') as f:
+#     pickle.dump(sim_meta_base, f)
 
 
 # Getting back the objects:
 import pickle
 with open('objs.pkl', 'rb') as f:
-    bias = pickle.load(f)
+    sim_meta_base = pickle.load(f)
+
+def sim_results(bias = sim_meta_base['bias_c1']):
+    # Overall bias and RMSE
+    bias_avg = [np.absolute(_['bias_knn']).mean() for _ in bias]
+    bias_avg = sum(bias_avg)/len(bias_avg)
+    bias_avg_tvp = [np.absolute(_['bias_tvp']).mean() for _ in bias]
+    bias_avg_tvp = sum(bias_avg_tvp)/len(bias_avg_tvp)
+    rmse_avg = [np.absolute(_['bias_knn']).mean()**2 for _ in bias]
+    rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
+    rmse_avg_tvp = [np.absolute(_['bias_tvp']).mean()**2 for _ in bias]
+    rmse_avg_tvp = ((sum(rmse_avg_tvp)/len(rmse_avg_tvp)))**0.5
+    bias_avg_T = [[_ for _ in bias if _['T'] == count] for count in [200,500,1000]]
+    bias_avg_T = [[np.absolute(b['bias_knn']).mean() for b in _] for _ in bias_avg_T]
+    bias_avg_T = [sum(_)/len(_) for _ in bias_avg_T]
+    bias_avg_T = pd.DataFrame([_ for _ in bias_avg_T], index=[200,500,1000]).T
+    bias_avg_T_tvp = [[_ for _ in bias if _['T'] == count] for count in [200,500,1000]]
+    bias_avg_T_tvp = [[np.absolute(b['bias_tvp']).mean() for b in _] for _ in bias_avg_T_tvp]
+    bias_avg_T_tvp = [sum(_)/len(_) for _ in bias_avg_T_tvp]
+    bias_avg_T_tvp = pd.DataFrame([_ for _ in bias_avg_T_tvp], index=[200,500,1000]).T
+    rmse_avg_T = [[_ for _ in bias if _['T'] == count] for count in [200,500,1000]]
+    rmse_avg_T = [[np.absolute(b['bias_knn']).mean()**2 for b in _] for _ in rmse_avg_T]
+    rmse_avg_T = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T]
+    rmse_avg_T = pd.DataFrame([_ for _ in rmse_avg_T], index=[200,500,1000]).T
+    rmse_avg_T_tvp = [[_ for _ in bias if _['T'] == count] for count in [200,500,1000]]
+    rmse_avg_T_tvp = [[np.absolute(b['bias_tvp']).mean()**2 for b in _] for _ in rmse_avg_T_tvp]
+    rmse_avg_T_tvp = [(sum(_)/len(_))**0.5 for _ in rmse_avg_T_tvp]
+    rmse_avg_T_tvp = pd.DataFrame([_ for _ in rmse_avg_T_tvp], index=[200,500,1000]).T
+    tab_CR_T = pd.DataFrame(columns=range(0,11), index=[200,500,1000])
+    tab_CR_T_tvp = pd.DataFrame(columns=range(0,11), index=[200,500,1000])
+    for n_obs in [200,500,1000]:
+        for h in range(0,11):
+            coverage_h_T = [np.mean((b['ci_l'][h].values < b['tvp_irf'][h].values) & (b['tvp_irf'][h].values <= b['ci_u'][h].values)) for b in bias if (b['T'] == n_obs)]
+            tab_CR_T.loc[n_obs, h] = np.mean(coverage_h_T)
+            coverage_h_T_tvp = [np.mean((b['tvp_ci_l'][h].values < b['tvp_irf'][h].values) & (b['tvp_irf'][h].values <= b['tvp_ci_u'][h].values)) for b in bias if (b['T'] == n_obs)]
+            tab_CR_T_tvp.loc[n_obs, h] = np.mean(coverage_h_T_tvp)
+    return {'bias_avg' : bias_avg, 'bias_avg_tvp' : bias_avg_tvp, 'rmse_avg' : rmse_avg, 'rmse_avg_tvp' : rmse_avg_tvp, 'bias_avg_T' : bias_avg_T, 'bias_avg_T_tvp' : bias_avg_T_tvp, 'rmse_avg_T' : rmse_avg_T, 'rmse_avg_T_tvp' : rmse_avg_T_tvp, 'tab_CR_T' : tab_CR_T, 'tab_CR_T_tvp' : tab_CR_T_tvp}
+
+c1 = sim_results(sim_meta_base['bias_c1'])
+c4 = sim_results(sim_meta_base['bias_c4'])
+c8 = sim_results(sim_meta_base['bias_c8'])
+c16 = sim_results(sim_meta_base['bias_c16'])
+c40 = sim_results(sim_meta_base['bias_c40'])
+
+print(c1['tab_CR_T'].loc[:, [2,4,8]].to_latex(float_format="%.4f"))
+print(c1['tab_CR_T_tvp'].loc[:, [2,4,8]].to_latex(float_format="%.4f"))
 
 
-bias_avg = [np.absolute(_['bias_knn']).mean() for _ in bias]
-bias_avg = sum(bias_avg)/len(bias_avg)
-bias_avg_tvp = [np.absolute(_['bias_tvp']).mean() for _ in bias]
-bias_avg_tvp = sum(bias_avg_tvp)/len(bias_avg_tvp)
+# bias_avg.plot(); plt.show()
+# bias_avg_tvp.plot(); plt.show()
 
-bias_avg.plot(); plt.show()
-bias_avg_tvp.plot(); plt.show()
 
-rmse_avg = [np.absolute(_['bias_knn']).mean()**2 for _ in bias]
-rmse_avg = ((sum(rmse_avg)/len(rmse_avg)))**0.5
-rmse_avg_tvp = [np.absolute(_['bias_tvp']).mean()**2 for _ in bias]
-rmse_avg_tvp = ((sum(rmse_avg_tvp)/len(rmse_avg_tvp)))**0.5
 
-rmse_avg.plot(); plt.show()
-rmse_avg_tvp.plot(); plt.show()
+# rmse_avg.plot(); plt.show()
+# rmse_avg_tvp.plot(); plt.show()
 
 # n_var: 2,3,4: n_obs: 200,400,600,800,1000: n_lags:1,2,3,4
 # Separate bias list by n_var
@@ -716,12 +750,11 @@ tab_bias = tab.copy()
 tab_rmse = tab.copy()
 tab_CR = tab.copy()
 
-tab_CR_T = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,6)])
-
 tab_bias_tvp = tab.copy()
 tab_rmse_tvp = tab.copy()
 tab_CR_tvp = tab.copy()
 
+tab_CR_T = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,6)])
 tab_CR_T_tvp = pd.DataFrame(columns=range(0,11), index=[_*200 for _ in range(1,6)])
 
 for n_var in range(2,5):
