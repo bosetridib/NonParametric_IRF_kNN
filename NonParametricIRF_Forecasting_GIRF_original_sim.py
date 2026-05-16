@@ -668,16 +668,48 @@ def sim_results(bias = sim_meta_base['bias_c1']):
             tab_CR_T.loc[n_obs, h] = np.mean(coverage_h_T)
             coverage_h_T_tvp = [np.mean((b['tvp_ci_l'][h].values < b['tvp_irf'][h].values) & (b['tvp_irf'][h].values <= b['tvp_ci_u'][h].values)) for b in bias if (b['T'] == n_obs)]
             tab_CR_T_tvp.loc[n_obs, h] = np.mean(coverage_h_T_tvp)
-    return {'bias_avg' : bias_avg, 'bias_avg_tvp' : bias_avg_tvp, 'rmse_avg' : rmse_avg, 'rmse_avg_tvp' : rmse_avg_tvp, 'bias_avg_T' : bias_avg_T, 'bias_avg_T_tvp' : bias_avg_T_tvp, 'rmse_avg_T' : rmse_avg_T, 'rmse_avg_T_tvp' : rmse_avg_T_tvp, 'tab_CR_T' : tab_CR_T, 'tab_CR_T_tvp' : tab_CR_T_tvp}
+    return {
+        'bias_avg' : bias_avg, 'bias_avg_tvp' : bias_avg_tvp,
+        'rmse_avg' : rmse_avg, 'rmse_avg_tvp' : rmse_avg_tvp,
+        'bias_avg_T' : bias_avg_T, 'bias_avg_T_tvp' : bias_avg_T_tvp,
+        'rmse_avg_T' : rmse_avg_T, 'rmse_avg_T_tvp' : rmse_avg_T_tvp,
+        'tab_CR_T' : tab_CR_T, 'tab_CR_T_tvp' : tab_CR_T_tvp
+    }
 
-c1 = sim_results(sim_meta_base['bias_c1'])
 c4 = sim_results(sim_meta_base['bias_c4'])
 c8 = sim_results(sim_meta_base['bias_c8'])
+c12 = sim_results(sim_meta_base['bias_c12'])
 c16 = sim_results(sim_meta_base['bias_c16'])
-c40 = sim_results(sim_meta_base['bias_c40'])
+
+
 
 print(c1['tab_CR_T'].loc[:, [2,4,8]].to_latex(float_format="%.4f"))
 print(c1['tab_CR_T_tvp'].loc[:, [2,4,8]].to_latex(float_format="%.4f"))
+
+tab_complete = pd.DataFrame(
+    columns=pd.MultiIndex.from_product([['kNN', 'TVP-VAR'], [2,4,8]], names=['Method', 'Horizon']),
+    index=pd.MultiIndex.from_product([['Bias', 'RMSE', 'Coverage rate'], ['c=4','c=8','c=12','c=16'], ['Overall', 200, 500, 1000]], names=['c', 'metric', 'T'])
+)
+count = [4, 8, 12, 16]
+for c in [c4,c8,c12,c16]:
+    c_val = str(count[0])
+    for h in [2,4,8]:
+        tab_complete.loc[('Bias', 'c='+c_val, 'Overall'), ('kNN', h)] = c['bias_avg'][h]
+        tab_complete.loc[('Bias', 'c='+c_val, 'Overall'), ('TVP-VAR', h)] = c['bias_avg_tvp'][h]
+        tab_complete.loc[('RMSE', 'c='+c_val, 'Overall'), ('kNN', h)] = c['rmse_avg'][h]
+        tab_complete.loc[('RMSE', 'c='+c_val, 'Overall'), ('TVP-VAR', h)] = c['rmse_avg_tvp'][h]
+        tab_complete.loc[('Coverage rate', 'c='+c_val, 'Overall'), ('kNN', h)] = np.mean(c['tab_CR_T'].loc[:, h])
+        tab_complete.loc[('Coverage rate', 'c='+c_val, 'Overall'), ('TVP-VAR', h)] = np.mean(c['tab_CR_T_tvp'].loc[:, h])
+        for T in [200,500,1000]:
+            tab_complete.loc[('Bias', 'c='+c_val, T), ('kNN', h)] = c['bias_avg_T'].loc[h, T]
+            tab_complete.loc[('Bias', 'c='+c_val, T), ('TVP-VAR', h)] = c['bias_avg_T_tvp'].loc[h, T]
+            tab_complete.loc[('RMSE', 'c='+c_val, T), ('kNN', h)] = c['rmse_avg_T'].loc[h, T]
+            tab_complete.loc[('RMSE', 'c='+c_val, T), ('TVP-VAR', h)] = c['rmse_avg_T_tvp'].loc[h, T]
+            tab_complete.loc[('Coverage rate', 'c='+c_val, T), ('kNN', h)] = c['tab_CR_T'].loc[T, h]
+            tab_complete.loc[('Coverage rate', 'c='+c_val, T), ('TVP-VAR', h)] = c['tab_CR_T_tvp'].loc[T, h]
+    count.pop(0)
+#End
+print(tab_complete.to_latex(float_format="%.4f"))
 
 
 # bias_avg.plot(); plt.show()
